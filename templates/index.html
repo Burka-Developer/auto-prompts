@@ -1,0 +1,3202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Automation — Studio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ══════════════════════════════════════
+           DESIGN TOKENS
+        ══════════════════════════════════════ */
+        :root {
+            --bg-root:    #0d0f17;
+            --bg-side:    #111420;
+            --bg-card:    #161925;
+            --bg-card2:   #1c2033;
+            --bg-input:   #0f1220;
+            --accent:     #f0a444;
+            --accent2:    #ff7b54;
+            --accent-dim: rgba(240,164,68,.13);
+            --accent-glow:rgba(240,164,68,.22);
+            --green:      #3dd68c;
+            --red:        #ff5c5c;
+            --blue:       #5b8dee;
+            --border:     rgba(255,255,255,.07);
+            --border2:    rgba(255,255,255,.12);
+            --text:       #e8eaf0;
+            --muted:      #6b738a;
+            --muted2:     #9099b3;
+            --radius:     14px;
+            --radius-sm:  8px;
+            --shadow:     0 4px 24px rgba(0,0,0,.45);
+            --shadow-glow:0 0 28px rgba(240,164,68,.18);
+        }
+
+        /* ══════════════════════════════════════
+           RESET & BASE
+        ══════════════════════════════════════ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body { height: 100%; }
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-root);
+            color: var(--text);
+            margin: 0; padding: 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(240,164,68,.35); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* ══════════════════════════════════════
+           SIDEBAR
+        ══════════════════════════════════════ */
+        .sidebar {
+            position: fixed; top: 0; left: 0;
+            width: 248px; height: 100vh;
+            background: var(--bg-side);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            z-index: 200;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: width .25s ease;
+        }
+
+        .sidebar-brand {
+            padding: 22px 20px 18px;
+            display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-brand .brand-icon {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; color: #fff;
+            box-shadow: 0 4px 14px rgba(240,164,68,.35);
+            flex-shrink: 0;
+        }
+        .sidebar-brand .brand-text { line-height: 1.2; }
+        .sidebar-brand .brand-name { font-weight: 800; font-size: 15px; color: var(--text); }
+        .sidebar-brand .brand-sub  { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+        .nav-group { padding: 18px 14px 4px; }
+        .nav-group-label {
+            font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.2px;
+            color: var(--muted); padding: 0 6px; margin-bottom: 6px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 12px; border-radius: 9px;
+            cursor: pointer; color: var(--muted2);
+            font-size: 13.5px; font-weight: 500;
+            margin-bottom: 2px;
+            transition: background .15s, color .15s;
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+        .nav-item:hover { background: rgba(255,255,255,.05); color: var(--text); }
+        .nav-item.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-color: rgba(240,164,68,.18);
+            font-weight: 600;
+        }
+        .nav-item .nav-icon {
+            width: 30px; height: 30px;
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px;
+            background: rgba(255,255,255,.04);
+            flex-shrink: 0;
+            transition: background .15s;
+        }
+        .nav-item.active .nav-icon { background: rgba(240,164,68,.18); }
+        .nav-item:hover .nav-icon  { background: rgba(255,255,255,.08); }
+        .nav-item .nav-badge {
+            margin-left: auto;
+            font-size: 10px; font-weight: 700; padding: 1px 7px;
+            border-radius: 99px;
+            background: var(--accent-dim); color: var(--accent);
+        }
+
+        .sidebar-footer {
+            margin-top: auto; padding: 14px 20px;
+            border-top: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+            color: var(--muted); font-size: 12px;
+        }
+        .sidebar-footer i { color: var(--green); }
+
+        /* ══════════════════════════════════════
+           MAIN CONTENT
+        ══════════════════════════════════════ */
+        .main-content {
+            margin-left: 248px;
+            min-height: 100vh;
+            padding: 32px 36px;
+            overflow-x: hidden;
+        }
+
+        /* ── Page Header ── */
+        .page-header {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            margin-bottom: 32px; gap: 16px;
+        }
+        .page-header-left h2 {
+            font-size: 22px; font-weight: 800;
+            color: var(--text); margin-bottom: 8px; margin-top: 0;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .page-header-left h2 .header-icon {
+            width: 36px; height: 36px; border-radius: 9px;
+            background: var(--accent-dim);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 16px; color: var(--accent);
+        }
+        .page-header-left p { color: var(--muted2); font-size: 13px; margin: 0; }
+
+        /* ── Cards ── */
+        .card-dark {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px;
+            margin-bottom: 24px;
+        }
+        .card-dark.elevated {
+            background: var(--bg-card2);
+            box-shadow: var(--shadow);
+        }
+        .card-title {
+            font-size: 13px; font-weight: 700;
+            color: var(--text);
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 18px; margin-top: 0;
+            text-transform: uppercase; letter-spacing: .5px;
+        }
+        .card-title i { color: var(--accent); }
+        .card-title .card-title-badge {
+            margin-left: auto;
+            font-size: 10px; font-weight: 600;
+            padding: 2px 8px; border-radius: 99px;
+            background: var(--accent-dim); color: var(--accent);
+            text-transform: none; letter-spacing: 0;
+        }
+
+        /* ── Divider ── */
+        .divider {
+            border: none; border-top: 1px solid var(--border);
+            margin: 16px 0;
+        }
+
+        /* ══════════════════════════════════════
+           FORM CONTROLS
+        ══════════════════════════════════════ */
+        .form-label {
+            font-size: 11.5px; font-weight: 700;
+            color: var(--muted2);
+            text-transform: uppercase; letter-spacing: .6px;
+            margin-bottom: 7px; display: block;
+        }
+        .form-label .required { color: var(--red); }
+        .form-label .opt {
+            font-size: 10px; font-weight: 600; padding: 1px 6px;
+            border-radius: 4px; background: rgba(255,255,255,.05);
+            color: var(--muted); text-transform: none; letter-spacing: 0;
+            margin-left: 6px;
+        }
+
+        .form-control-dark,
+        .form-select-dark {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border2);
+            color: var(--text);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color .2s, box-shadow .2s;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .form-control-dark:focus,
+        .form-select-dark:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+        .form-control-dark::placeholder { color: var(--muted); }
+        textarea.form-control-dark { resize: vertical; min-height: 78px; }
+        .form-select-dark option { background: #1c2033; color: var(--text); }
+
+        /* ── Checkbox ── */
+        .form-check { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .form-check-input {
+            width: 17px; height: 17px; cursor: pointer; margin: 0;
+            border-radius: 5px; flex-shrink: 0;
+            background: var(--bg-input); border: 1px solid var(--border2);
+            appearance: none; -webkit-appearance: none;
+            transition: background .15s, border-color .15s;
+        }
+        .form-check-input:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E");
+        }
+        .form-check-label { font-size: 13.5px; color: var(--text); cursor: pointer; }
+
+        /* ══════════════════════════════════════
+           BUTTONS
+        ══════════════════════════════════════ */
+        .btn-accent {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+            color: #fff; border: none; border-radius: var(--radius-sm);
+            padding: 11px 24px; font-weight: 700; font-size: 13.5px;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+            transition: transform .15s, box-shadow .15s, opacity .15s;
+            text-decoration: none; white-space: nowrap;
+        }
+        .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(240,164,68,.4); color: #fff; }
+        .btn-accent:active { transform: translateY(0); }
+        .btn-accent:disabled { opacity: .45; transform: none; box-shadow: none; cursor: not-allowed; }
+        .btn-accent.w-100 { width: 100%; justify-content: center; }
+        .btn-accent.btn-lg { padding: 14px 30px; font-size: 15px; border-radius: 10px; }
+        .btn-accent.btn-sm { padding: 7px 16px; font-size: 12px; }
+
+        .btn-ghost {
+            background: rgba(255,255,255,.05);
+            color: var(--muted2); border: 1px solid var(--border2);
+            border-radius: var(--radius-sm); padding: 9px 18px;
+            font-weight: 600; font-size: 13px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 7px;
+            transition: background .15s, color .15s, border-color .15s;
+            white-space: nowrap;
+        }
+        .btn-ghost:hover { background: rgba(255,255,255,.09); color: var(--text); border-color: var(--border2); }
+        .btn-ghost.w-100 { width: 100%; justify-content: center; }
+        .btn-ghost.btn-sm { padding: 6px 13px; font-size: 12px; }
+        .btn-ghost.danger { color: var(--red); border-color: rgba(255,92,92,.25); }
+        .btn-ghost.danger:hover { background: rgba(255,92,92,.1); border-color: var(--red); }
+        .btn-ghost.success { color: var(--green); border-color: rgba(61,214,140,.25); }
+
+        .btn-icon {
+            width: 32px; height: 32px; border-radius: 7px;
+            background: rgba(255,255,255,.04); border: 1px solid var(--border);
+            color: var(--muted2); display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all .15s; font-size: 12px;
+        }
+        .btn-icon:hover { background: var(--accent-dim); color: var(--accent); border-color: rgba(240,164,68,.25); }
+        .btn-icon.danger:hover { background: rgba(255,92,92,.1); color: var(--red); border-color: rgba(255,92,92,.3); }
+
+        /* ══════════════════════════════════════
+           BADGES
+        ══════════════════════════════════════ */
+        .badge-accent {
+            background: var(--accent-dim); color: var(--accent);
+            font-size: 11px; font-weight: 700; padding: 3px 9px;
+            border-radius: 99px; white-space: nowrap; display: inline-block;
+        }
+        .badge-green {
+            background: rgba(61,214,140,.12); color: var(--green);
+            font-size: 11px; font-weight: 700; padding: 3px 9px;
+            border-radius: 99px; white-space: nowrap; display: inline-block;
+        }
+        .badge-red {
+            background: rgba(255,92,92,.12); color: var(--red);
+            font-size: 11px; font-weight: 700; padding: 3px 9px;
+            border-radius: 99px; white-space: nowrap; display: inline-block;
+        }
+        .badge-blue {
+            background: rgba(91,141,238,.12); color: var(--blue);
+            font-size: 11px; font-weight: 700; padding: 3px 9px;
+            border-radius: 99px; white-space: nowrap; display: inline-block;
+        }
+
+        /* ══════════════════════════════════════
+           OUTPUT PANEL
+        ══════════════════════════════════════ */
+        .output-panel {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 16px 18px;
+            max-height: 420px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 12.5px;
+            line-height: 1.7;
+            color: var(--text);
+        }
+
+        .output-tabs {
+            display: flex; gap: 0; flex-wrap: wrap;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 14px;
+        }
+        .output-tab {
+            padding: 8px 15px; cursor: pointer;
+            color: var(--muted2); font-size: 12.5px; font-weight: 600;
+            border-bottom: 2px solid transparent; margin-bottom: -1px;
+            transition: color .15s, border-color .15s; white-space: nowrap;
+        }
+        .output-tab:hover { color: var(--text); }
+        .output-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* ══════════════════════════════════════
+           SPINNER
+        ══════════════════════════════════════ */
+        .spinner-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.78); backdrop-filter: blur(6px);
+            z-index: 9999; flex-direction: column;
+            justify-content: center; align-items: center; gap: 18px;
+        }
+        .spinner-overlay.show { display: flex; }
+        .spinner-card {
+            background: var(--bg-card2);
+            border: 1px solid var(--border2);
+            border-radius: 18px; padding: 36px 48px;
+            display: flex; flex-direction: column; align-items: center; gap: 18px;
+            box-shadow: var(--shadow);
+        }
+        .spinner-ring {
+            width: 52px; height: 52px;
+            border: 3px solid rgba(255,255,255,.08);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin .75s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner-text { color: var(--text); font-weight: 600; font-size: 15px; }
+        .spinner-sub  { color: var(--muted); font-size: 12.5px; }
+
+        /* ══════════════════════════════════════
+           TOASTS
+        ══════════════════════════════════════ */
+        .toast-container {
+            position: fixed; top: 22px; right: 22px; z-index: 10000;
+            display: flex; flex-direction: column; gap: 8px;
+            min-width: 280px; max-width: 360px;
+        }
+        .toast-msg {
+            background: var(--bg-card2);
+            border: 1px solid var(--border2);
+            border-radius: 11px; padding: 13px 18px;
+            display: flex; align-items: center; gap: 12px;
+            font-size: 13.5px; font-weight: 500;
+            animation: toastIn .28s cubic-bezier(.34,1.56,.64,1);
+            box-shadow: var(--shadow);
+        }
+        .toast-msg.success { border-left: 3px solid var(--green); }
+        .toast-msg.error   { border-left: 3px solid var(--red); }
+        .toast-msg.info    { border-left: 3px solid var(--accent); }
+        .toast-msg .t-icon { font-size: 16px; flex-shrink: 0; }
+        .toast-msg.success .t-icon { color: var(--green); }
+        .toast-msg.error   .t-icon { color: var(--red); }
+        .toast-msg.info    .t-icon { color: var(--accent); }
+        @keyframes toastIn {
+            from { transform: translateX(120%) scale(.9); opacity: 0; }
+            to   { transform: translateX(0) scale(1);   opacity: 1; }
+        }
+
+        /* ══════════════════════════════════════
+           STEP INDICATOR
+        ══════════════════════════════════════ */
+        .steps-bar {
+            display: flex; align-items: center; gap: 0;
+            margin-bottom: 28px;
+        }
+        .step-item {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 13px; font-weight: 600; color: var(--muted);
+            flex: 1;
+        }
+        .step-item.active  { color: var(--accent); }
+        .step-item.done, .step-item.completed { color: var(--green); }
+        .step-num {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: var(--bg-card2); border: 2px solid var(--border2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 800; flex-shrink: 0;
+            transition: all .2s;
+        }
+        .step-item.active .step-num {
+            background: var(--accent); border-color: var(--accent); color: #fff;
+            box-shadow: 0 0 14px rgba(240,164,68,.4);
+        }
+        .step-item.done .step-num, .step-item.completed .step-num {
+            background: var(--green); border-color: var(--green); color: #fff;
+        }
+        .step-connector {
+            width: 60px; height: 2px; background: var(--border2);
+        }
+
+        /* ══════════════════════════════════════
+           STAT CHIPS
+        ══════════════════════════════════════ */
+        .stat-chip {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--bg-card2); border: 1px solid var(--border);
+            border-radius: 10px; padding: 11px 16px;
+        }
+        .stat-chip .chip-icon {
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-size: 14px;
+            flex-shrink: 0;
+        }
+        .stat-chip .chip-val { font-size: 20px; font-weight: 800; line-height: 1; }
+        .stat-chip .chip-label { font-size: 11px; color: var(--muted); font-weight: 500; }
+
+        /* ══════════════════════════════════════
+           PROGRESS BAR
+        ══════════════════════════════════════ */
+        .prog-track {
+            background: var(--bg-input); border-radius: 99px;
+            height: 10px; overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .prog-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 99px;
+            transition: width .5s ease;
+            display: flex; align-items: center; justify-content: flex-end;
+            padding-right: 6px;
+            font-size: 9px; font-weight: 800; color: #fff;
+        }
+
+        /* ══════════════════════════════════════
+           NICHE HUB — PRESET CARDS
+        ══════════════════════════════════════ */
+        .niche-preset-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border2);
+            border-radius: 11px; padding: 14px;
+            cursor: pointer; transition: all .18s;
+            height: 100%;
+            position: relative; overflow: hidden;
+        }
+        .niche-preset-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2));
+            transform: scaleX(0); transform-origin: left; transition: transform .2s;
+        }
+        .niche-preset-card:hover::before { transform: scaleX(1); }
+        .niche-preset-card:hover {
+            border-color: rgba(240,164,68,.3);
+            box-shadow: 0 4px 20px rgba(0,0,0,.3);
+            transform: translateY(-2px);
+        }
+        .niche-preset-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+            box-shadow: var(--shadow-glow);
+        }
+        .niche-preset-card.selected::before { transform: scaleX(1); }
+        .niche-preset-emoji { font-size: 24px; margin-bottom: 8px; display: block; }
+        .niche-preset-name  { font-weight: 700; color: var(--text); font-size: 13px; margin-bottom: 4px; }
+        .niche-preset-desc  { font-size: 11px; color: var(--muted); line-height: 1.45; }
+        .niche-selected-check {
+            position: absolute; top: 8px; right: 8px;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--accent); color: #fff;
+            font-size: 10px; display: none;
+            align-items: center; justify-content: center;
+        }
+        .niche-preset-card.selected .niche-selected-check { display: flex; }
+
+        /* ══════════════════════════════════════
+           NICHE HUB — TITLE CARDS
+        ══════════════════════════════════════ */
+        .niche-title-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border2);
+            border-radius: 11px; padding: 14px;
+            transition: border-color .18s;
+            cursor: pointer;
+            position: relative;
+        }
+        .niche-title-card:hover { border-color: rgba(240,164,68,.3); }
+        .niche-title-card.is-selected { border-color: rgba(61,214,140,.35); background: rgba(61,214,140,.04); }
+        .niche-title-check-wrap {
+            position: absolute; top: 12px; right: 12px;
+        }
+        .niche-title-text { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 8px; padding-right: 28px; line-height: 1.45; }
+        .badge-hook {
+            background: var(--accent-dim); color: var(--accent);
+            font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px;
+            text-transform: uppercase; letter-spacing: .3px;
+        }
+        .badge-emotion {
+            background: rgba(61,214,140,.12); color: var(--green);
+            font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px;
+            text-transform: uppercase; letter-spacing: .3px;
+        }
+        .niche-title-brief {
+            font-size: 11.5px; color: var(--muted); margin-top: 7px; line-height: 1.5;
+        }
+        .niche-title-why {
+            font-size: 11px; color: var(--muted); margin-top: 5px; font-style: italic;
+        }
+
+        /* ══════════════════════════════════════
+           NICHE HUB — ANALYSIS BOX
+        ══════════════════════════════════════ */
+        .niche-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
+    gap:18px;
+}
+        .niche-analysis-box {
+            background: var(--bg-input); border-radius: 10px;
+            padding: 16px; border-left: 3px solid var(--accent);
+            margin-bottom: 18px;
+        }
+        .niche-analysis-row {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 4px 0; font-size: 13px; color: var(--muted2);
+        }
+        .niche-analysis-row i { color: var(--accent); margin-top: 2px; flex-shrink: 0; }
+
+        /* ══════════════════════════════════════
+           BULK — DROP ZONE
+        ══════════════════════════════════════ */
+        .drop-zone {
+            border: 2px dashed rgba(255,255,255,.14);
+            border-radius: 14px; padding: 48px 20px;
+            text-align: center; cursor: pointer;
+            background: var(--bg-input);
+            transition: all .2s;
+            width: 100%; min-height: 180px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+        .drop-zone .dz-icon { font-size: 44px; color: var(--accent); opacity: .7; margin-bottom: 16px; }
+        .drop-zone .dz-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+        .drop-zone .dz-sub { font-size: 12.5px; color: var(--muted2); line-height: 1.6; margin: 0; }
+
+        /* ══════════════════════════════════════
+           BULK — ITEMS LIST
+        ══════════════════════════════════════ */
+        .bulk-item-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 14px; border-radius: 8px;
+            font-size: 13px; transition: background .15s;
+            border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+        .bulk-item-row:last-child { border-bottom: none; }
+        .bulk-item-row:hover { background: rgba(255,255,255,.03); }
+        .bulk-item-row.processing { background: rgba(240,164,68,.06); }
+        .bulk-item-row .status-icon { width: 22px; text-align: center; flex-shrink: 0; }
+        .bulk-item-row .item-num { color: var(--muted); font-size: 12px; width: 28px; flex-shrink: 0; }
+        .bulk-item-row .item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bulk-item-row.completed .status-icon { color: var(--green); }
+        .bulk-item-row.failed    .status-icon { color: var(--red); }
+        .bulk-item-row.queued    .status-icon { color: var(--muted); }
+        .bulk-item-row.processing .status-icon { color: var(--accent); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+        /* ══════════════════════════════════════
+           TABLE
+        ══════════════════════════════════════ */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table th {
+            padding: 10px 14px; color: var(--muted); font-size: 11px;
+            font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+            border-bottom: 1px solid var(--border); text-align: left;
+            background: rgba(255,255,255,.02);
+        }
+        .data-table td {
+            padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,.04);
+            color: var(--text); max-width: 220px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .data-table tr:hover td { background: rgba(255,255,255,.025); }
+
+        /* ══════════════════════════════════════
+           PROJECT CARDS
+        ══════════════════════════════════════ */
+        .project-card {
+            background: var(--bg-card2); border: 1px solid var(--border);
+            border-radius: 11px; padding: 16px; cursor: pointer;
+            transition: border-color .18s, box-shadow .18s;
+            margin-bottom: 8px;
+        }
+        .project-card:hover { border-color: rgba(240,164,68,.3); box-shadow: 0 2px 14px rgba(0,0,0,.3); }
+        .project-card .pc-name { font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 2px; }
+        .project-files { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+        .project-file-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 0; font-size: 13px; color: var(--muted2);
+        }
+        .project-file-item i { color: var(--muted); font-size: 11px; }
+
+        /* ══════════════════════════════════════
+           STRUCTURE TREE (templates)
+        ══════════════════════════════════════ */
+        .structure-tree {
+            background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 12px;
+        }
+        .tree-folder { margin-bottom: 8px; }
+        .tree-folder-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px; background: rgba(240,164,68,.07);
+            border-radius: 7px; margin-bottom: 4px;
+        }
+        .tree-folder-header i { color: var(--accent); }
+        .tree-folder-header input {
+            background: transparent; border: none; color: var(--text);
+            font-weight: 700; flex: 1; font-size: 14px; outline: none; font-family: inherit;
+        }
+        .tree-file {
+            display: flex; align-items: center; gap: 8px;
+            padding: 4px 8px 4px 34px;
+        }
+        .tree-file i { color: var(--muted); font-size: 12px; }
+        .tree-file input {
+            background: transparent; border: none; color: var(--text);
+            flex: 1; font-size: 13px; outline: none; font-family: inherit;
+        }
+
+        /* ══════════════════════════════════════
+           MODAL
+        ══════════════════════════════════════ */
+        .modal-content {
+            background: var(--bg-card); border: 1px solid var(--border2);
+            border-radius: 16px; color: var(--text);
+        }
+        .modal-header { border-bottom: 1px solid var(--border); padding: 20px 24px; background: var(--bg-card2); }
+        .modal-footer { border-top:  1px solid var(--border); padding: 16px 24px; background: var(--bg-card2); }
+        .modal-body   { padding: 24px; }
+        .modal-title  { font-weight: 800; font-size: 16px; color: var(--text); }
+        .btn-close-white { filter: invert(1) grayscale(100%); }
+
+        /* ══════════════════════════════════════
+           STRATEGY TIPS
+        ══════════════════════════════════════ */
+        .strategy-tip {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 8px 0; font-size: 12.5px; color: var(--muted2);
+            border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+        .strategy-tip:last-child { border-bottom: none; }
+        .strategy-tip i { color: var(--green); margin-top: 3px; flex-shrink: 0; font-size: 11px; }
+
+        /* ══════════════════════════════════════
+           LAUNCH PANEL
+        ══════════════════════════════════════ */
+        .launch-panel {
+            background: linear-gradient(135deg, rgba(240,164,68,.08) 0%, rgba(255,123,84,.06) 100%);
+            border: 1px solid rgba(240,164,68,.22);
+            border-radius: 14px; padding: 24px;
+        }
+
+/* FIXED GRID */
+.row {
+    --bs-gutter-x: 1.25rem;
+    --bs-gutter-y: 1.25rem;
+}
+
+.col,
+[class*="col-"]{
+    padding-left: calc(var(--bs-gutter-x)/2);
+    padding-right: calc(var(--bs-gutter-x)/2);
+}
+    
+        /* Table responsive */
+        .table-responsive {
+            max-height: 320px;
+            overflow: auto;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        .mt-1 { margin-top: 16px !important; }
+        .mb-1 { margin-bottom: 16px !important; }
+        .mb-2 { margin-bottom: 20px !important; }
+        .mb-3 { margin-bottom: 24px !important; }
+        .mb-4 { margin-bottom: 32px !important; }
+
+        /* ══════════════════════════════════════
+           RESPONSIVE
+        ══════════════════════════════════════ */
+
+        /* ── Tablet large (≤1280px) ── */
+        @media (max-width: 1280px) {
+            .main-content { padding: 26px 28px; }
+        }
+
+        /* ── Tablet (≤960px): icon-only sidebar ── */
+        @media (max-width: 960px) {
+            .sidebar { width: 64px; }
+            .sidebar .nav-item span,
+            .sidebar .nav-group-label,
+            .sidebar-brand .brand-text,
+            .sidebar-footer span { display: none; }
+            .sidebar-brand { padding: 14px; justify-content: center; }
+            .sidebar-brand .brand-icon { margin: 0; }
+            .nav-item { justify-content: center; padding: 10px; }
+            .nav-item .nav-icon { margin: 0; }
+            .main-content { margin-left: 64px; padding: 20px 16px; }
+            .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .page-header-left h2 { font-size: 20px; }
+            .steps-bar { overflow-x: auto; padding-bottom: 4px; }
+            .step-connector { min-width: 20px; max-width: 40px; }
+        }
+
+        /* ── Mobile (≤640px) ── */
+        @media (max-width: 640px) {
+            .sidebar { width: 0; border-right: none; }
+            .main-content { margin-left: 0; padding: 14px 12px; }
+            .page-header-left h2 { font-size: 17px; }
+            .page-header-left h2 .header-icon { width: 30px; height: 30px; font-size: 13px; }
+            .card-dark { padding: 14px; }
+            .steps-bar { gap: 2px; }
+            .step-item span { display: none; }
+            .step-connector { max-width: 18px; min-width: 10px; }
+            .stat-chips-row { grid-template-columns: 1fr 1fr !important; }
+            .launch-panel { padding: 16px; }
+            .drop-zone { padding: 32px 16px; }
+            .drop-zone .dz-icon { font-size: 30px; }
+            .btn-accent.btn-lg { padding: 12px 18px; font-size: 14px; }
+            .row.g-4 { --bs-gutter-x: 0.75rem; --bs-gutter-y: 0.75rem; }
+        }
+
+        /* ── Hamburger menu toggle (mobile) ── */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed; top: 12px; left: 12px; z-index: 300;
+            width: 40px; height: 40px; border-radius: 9px;
+            background: var(--bg-card2); border: 1px solid var(--border2);
+            color: var(--text); font-size: 16px;
+            align-items: center; justify-content: center; cursor: pointer;
+        }
+        @media (max-width: 640px) {
+            .mobile-menu-btn { display: flex; }
+            .main-content { padding-top: 64px; }
+            .sidebar.mobile-open {
+                width: 248px;
+                box-shadow: 4px 0 32px rgba(0,0,0,.6);
+            }
+            .sidebar.mobile-open .nav-item span,
+            .sidebar.mobile-open .nav-group-label,
+            .sidebar.mobile-open .sidebar-brand .brand-text,
+            .sidebar.mobile-open .sidebar-footer span { display: initial; }
+            .sidebar.mobile-open .sidebar-brand { padding: 22px 20px 18px; justify-content: flex-start; }
+            .sidebar.mobile-open .nav-item { justify-content: flex-start; padding: 9px 12px; }
+        }
+
+        /* ══════════════════════════════════════
+           MISC UTILS
+        ══════════════════════════════════════ */
+        .text-accent { color: var(--accent); }
+        .text-green  { color: var(--green); }
+        .text-red    { color: var(--red); }
+        .text-muted  { color: var(--muted); }
+        .text-muted2 { color: var(--muted2); }
+        .fw-800 { font-weight: 800; }
+        .fw-700 { font-weight: 700; }
+        .gap-10 { gap: 10px; }
+        .align-items-end { align-items: flex-end; }
+        hr.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+        .empty-state {
+            text-align: center; padding: 60px 20px;
+            color: var(--muted);
+        }
+        .empty-state i { font-size: 44px; opacity: .2; display: block; margin-bottom: 14px; }
+        .empty-state p { font-size: 14px; }
+        .info-box {
+            background: rgba(91,141,238,.07);
+            border: 1px solid rgba(91,141,238,.18);
+            border-radius: 9px; padding: 14px 16px;
+            font-size: 12.5px; color: var(--muted2); line-height: 1.65;
+        }
+        .info-box b { color: var(--accent); }
+        .info-box p { margin-bottom: 8px; }
+        .info-box p:last-child { margin-bottom: 0; }
+        code {
+            background: rgba(255,255,255,.07); padding: 1px 6px;
+            border-radius: 4px; font-family: 'Cascadia Code', monospace;
+            font-size: 12px; color: var(--accent);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Mobile overlay (tap to close sidebar) -->
+    <div id="sidebarOverlay" onclick="closeMobileMenu()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199;"></div>
+    <!-- Mobile hamburger button -->
+    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileMenu()" title="Menu"><i class="fas fa-bars"></i></button>
+
+    <!-- ═════════════════ SIDEBAR ═════════════════ -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon"><i class="fas fa-bolt"></i></div>
+            <div class="brand-text">
+                <div class="brand-name">YT Studio</div>
+                <div class="brand-sub">Automation Tool</div>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-label">Create</div>
+            <div class="nav-item active" data-page="generate">
+                <div class="nav-icon"><i class="fas fa-magic"></i></div>
+                <span>Generate</span>
+            </div>
+            <div class="nav-item" data-page="niche">
+                <div class="nav-icon"><i class="fas fa-crosshairs"></i></div>
+                <span>Niche Hub</span>
+            </div>
+            <div class="nav-item" data-page="bulk">
+                <div class="nav-icon"><i class="fas fa-layer-group"></i></div>
+                <span>Bulk Automation</span>
+            </div>
+            <div class="nav-item" data-page="adobe">
+                <div class="nav-icon"><i class="fas fa-images"></i></div>
+                <span>Adobe Stock</span>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-label">Manage</div>
+            <div class="nav-item" data-page="projects">
+                <div class="nav-icon"><i class="fas fa-folder-open"></i></div>
+                <span>Projects</span>
+            </div>
+            <div class="nav-item" data-page="templates">
+                <div class="nav-icon"><i class="fas fa-layer-group"></i></div>
+                <span>Templates</span>
+            </div>
+            <div class="nav-item" data-page="prompt-creator">
+                <div class="nav-icon"><i class="fas fa-pen-nib"></i></div>
+                <span>Prompt Creator</span>
+            </div>
+            <div class="nav-item" data-page="folder-creator">
+                <div class="nav-icon"><i class="fas fa-sitemap"></i></div>
+                <span>Folder Creator</span>
+            </div>
+        </div>
+
+        <div class="nav-group">
+            <div class="nav-group-label">System</div>
+            <div class="nav-item" data-page="logs">
+                <div class="nav-icon"><i class="fas fa-terminal"></i></div>
+                <span>Logs</span>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <i class="fas fa-circle" style="font-size:8px;"></i>
+            <span>Gemini 2.5 Flash · Ready</span>
+        </div>
+    </div>
+
+    <!-- ═════════════════ SPINNER ═════════════════ -->
+    <div class="spinner-overlay" id="spinner">
+        <div class="spinner-card">
+            <div class="spinner-ring"></div>
+            <div class="spinner-text">Generating with Gemini...</div>
+            <div class="spinner-sub" id="spinnerSub">This may take a moment</div>
+        </div>
+    </div>
+
+    <!-- ═════════════════ TOASTS ═════════════════ -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ═════════════════ MAIN CONTENT ═════════════════ -->
+    <div class="main-content">
+
+        <!-- ─── PAGE: Generate ─── -->
+        <div class="page" id="page-generate">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-magic"></i></span> Generate Content</h2>
+                    <p>Create a full YouTube asset pack — script, image prompts, video prompts & metadata</p>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-xl-5">
+                    <!-- Inputs -->
+                    <div class="card-dark">
+                        <div class="card-title"><i class="fas fa-keyboard"></i> Inputs</div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Video Title <span class="required">*</span></label>
+                            <input type="text" class="form-control-dark" id="genTitle" placeholder="Enter your video title…">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description <span class="opt">optional</span></label>
+                            <textarea class="form-control-dark" id="genDesc" rows="2" placeholder="Brief description…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Transcript <span class="opt">optional</span></label>
+                            <textarea class="form-control-dark" id="genTranscript" rows="3" placeholder="Paste existing transcript or leave blank…"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Prompt Template <span class="opt">optional</span></label>
+                            <select class="form-select-dark" id="genTemplate">
+                                <option value="">None (default prompts)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Output Folder Name <span class="required">*</span></label>
+                            <input type="text" class="form-control-dark" id="genFolder" placeholder="e.g. my-video-project">
+                        </div>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="card-dark">
+                        <div class="card-title"><i class="fas fa-sliders-h"></i> Options</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:14px;">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="chkDialogue">
+                                <label class="form-check-label" for="chkDialogue">Include dialogue</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="chkImages" checked>
+                                <label class="form-check-label" for="chkImages">Image prompts</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="chkVideos" checked>
+                                <label class="form-check-label" for="chkVideos">Video prompts</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="chkI2V">
+                                <label class="form-check-label" for="chkI2V">Image-to-video</label>
+                            </div>
+                        </div>
+
+                        <hr class="divider">
+                        <div class="card-title" style="font-size:12px;"><i class="fas fa-hashtag"></i> Prompt Count</div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-4">
+                                <label class="form-label">Images</label>
+                                <input type="number" class="form-control-dark" id="genNumImages" placeholder="Auto" min="0" max="200">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Videos</label>
+                                <input type="number" class="form-control-dark" id="genNumVideos" placeholder="Auto" min="0" max="200">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">I2V</label>
+                                <input type="number" class="form-control-dark" id="genNumI2V" placeholder="Auto" min="0" max="200">
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Image Style <span class="opt">optional</span></label>
+                            <input type="text" class="form-control-dark" id="genImageStyle" placeholder="e.g. cinematic, anime, photorealistic…">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Video Style <span class="opt">optional</span></label>
+                            <input type="text" class="form-control-dark" id="genVideoStyle" placeholder="e.g. documentary, slow motion…">
+                        </div>
+                        <button class="btn-accent w-100 btn-lg" id="btnGenerate" onclick="generate()">
+                            <i class="fas fa-bolt"></i> Generate Now
+                        </button>
+                    </div>
+                </div>
+
+                <div class="col-xl-7">
+                    <!-- Placeholder -->
+                    <div class="card-dark" id="outputPlaceholder" style="min-height:340px;">
+                        <div class="empty-state">
+                            <i class="fas fa-film"></i>
+                            <p>Fill in the form and click <b style="color:var(--accent);">Generate Now</b> to create your content pack.</p>
+                        </div>
+                    </div>
+                    <!-- Output -->
+                    <div class="card-dark" id="outputCard" style="display:none;">
+                        <div class="card-title">
+                            <i class="fas fa-file-alt"></i> Output
+                            <span id="outputTitle" class="badge-accent" style="font-size:12px;"></span>
+                            <div style="margin-left:auto; display:flex; gap:8px;">
+                                <button class="btn-ghost btn-sm" onclick="copyOutput()"><i class="fas fa-copy"></i> Copy</button>
+                            </div>
+                        </div>
+                        <div class="output-tabs" id="outputTabsBar"></div>
+                        <div class="output-panel" id="outputContent">
+                            <span style="color:var(--muted);">Output will appear here after generation.</span>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <span id="outputPath" style="color:var(--muted);font-size:11.5px;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── PAGE: Projects ─── -->
+        <div class="page" id="page-projects" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-folder-open"></i></span> Projects</h2>
+                    <p>Browse previously generated project folders</p>
+                </div>
+            </div>
+            <div id="projectList">
+                <div class="empty-state"><i class="fas fa-spinner fa-spin" style="opacity:1;font-size:28px;"></i><p>Loading projects…</p></div>
+            </div>
+        </div>
+
+        <!-- ─── PAGE: Templates ─── -->
+        <div class="page" id="page-templates" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-layer-group"></i></span> Templates</h2>
+                    <p>Manage prompt templates with folder structures and file contents</p>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button class="btn-ghost btn-sm" onclick="loadTemplates()"><i class="fas fa-sync me-1"></i>Refresh</button>
+                    <button class="btn-accent btn-sm" onclick="showCreateTemplate()"><i class="fas fa-plus"></i> New Template</button>
+                </div>
+            </div>
+            <div id="templateList"></div>
+        </div>
+
+        <!-- ─── PAGE: Prompt Creator ─── -->
+        <div class="page" id="page-prompt-creator" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-pen-nib"></i></span> Prompt Creator</h2>
+                    <p>Select a template, pick a file, replace {keywords}, and generate prompts</p>
+                </div>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-5">
+                    <div class="card-dark">
+                        <div class="card-title"><i class="fas fa-sliders-h"></i> Settings</div>
+                        <div class="mb-3">
+                            <label class="form-label">Template</label>
+                            <select class="form-select-dark" id="pcTemplate" onchange="pcLoadTemplate()">
+                                <option value="">Select template…</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Folder / Section</label>
+                            <select class="form-select-dark" id="pcFolder" onchange="pcLoadFolder()">
+                                <option value="">Select folder…</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">File</label>
+                            <select class="form-select-dark" id="pcFile" onchange="pcLoadFile()">
+                                <option value="">Select file…</option>
+                            </select>
+                        </div>
+                        <div id="pcKeywords"></div>
+                        <button class="btn-accent w-100 mt-2" onclick="pcGenerate()"><i class="fas fa-pen"></i> Generate Prompt</button>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="card-dark">
+                        <div class="card-title">
+                            <i class="fas fa-file-alt"></i> Result
+                            <button class="btn-ghost btn-sm" style="margin-left:auto;" onclick="copyTextFrom('pcOutput')"><i class="fas fa-copy"></i> Copy</button>
+                        </div>
+                        <div class="output-panel" id="pcOutput" style="min-height:320px;">
+                            <span style="color:var(--muted);">Generated prompt will appear here.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── PAGE: Folder Creator ─── -->
+        <div class="page" id="page-folder-creator" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-sitemap"></i></span> Folder Creator</h2>
+                    <p>Create project folder structures from templates</p>
+                </div>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card-dark">
+                        <div class="card-title"><i class="fas fa-cog"></i> Settings</div>
+                        <div class="mb-3">
+                            <label class="form-label">Template</label>
+                            <select class="form-select-dark" id="fcTemplate" onchange="fcLoadExisting()">
+                                <option value="">Select template…</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Project Name</label>
+                            <input type="text" class="form-control-dark" id="fcProject" placeholder="e.g. story1">
+                        </div>
+                        <button class="btn-accent w-100" onclick="fcCreate()"><i class="fas fa-folder-plus"></i> Create Folders</button>
+                    </div>
+                    <div class="card-dark">
+                        <div class="card-title"><i class="fas fa-list"></i> Existing Projects</div>
+                        <div id="fcExisting" style="color:var(--muted);">Select a template to see projects.</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card-dark">
+                        <div class="card-title"><i class="fas fa-sitemap"></i> Structure Preview</div>
+                        <div id="fcPreview" class="structure-tree" style="min-height:200px;">
+                            <span style="color:var(--muted);">Folder structure will preview here.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── PAGE: Logs ─── -->
+        <div class="page" id="page-logs" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-terminal"></i></span> Generation Logs</h2>
+                    <p>Real-time error analysis. Failed responses are saved to <code>logs/</code> folder.</p>
+                </div>
+                <span id="logsMeta" style="color:var(--muted);font-size:12px;align-self:center;"></span>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:18px;">
+                <button class="btn-accent btn-sm" onclick="loadLogs('all')"><i class="fas fa-list"></i> All Logs</button>
+                <button class="btn-ghost btn-sm danger" onclick="loadLogs('errors')"><i class="fas fa-exclamation-triangle"></i> Errors Only</button>
+                <button class="btn-ghost btn-sm" onclick="loadLogs('all')"><i class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div class="card-dark">
+                <div class="output-panel" id="logsContent" style="max-height:600px;font-size:12px;line-height:1.7;">Click a button above to load logs.</div>
+            </div>
+        </div>
+
+        <!-- ─── PAGE: Bulk Automation ─── -->
+        <div class="page" id="page-bulk" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-layer-group"></i></span> Bulk Automation</h2>
+                    <p>Upload Excel, JSON, or TXT files with hundreds of video entries for automated generation</p>
+                </div>
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="steps-bar" id="bulkStepsBar">
+                <div class="step-item active" id="bulkStep1Ind">
+                    <div class="step-num">1</div>
+                    <span>Upload File</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="bulkStep2Ind">
+                    <div class="step-num">2</div>
+                    <span>Configure</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="bulkStep3Ind">
+                    <div class="step-num">3</div>
+                    <span>Processing</span>
+                </div>
+            </div>
+
+            <!-- Step 1: Upload -->
+            <div id="bulkStep1">
+                <div class="row g-4">
+                    <div class="col-lg-7">
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-cloud-upload-alt"></i> Upload Data File</div>
+                            <div id="bulkDropZone" class="drop-zone">
+                                <div class="dz-icon"><i class="fas fa-file-upload"></i></div>
+                                <div class="dz-title">Drop your file here or click to browse</div>
+                                <div class="dz-sub">Supports: .xlsx · .json · .txt<br>Headers: title, description, transcript, prompt_template, keywords, folder</div>
+                                <input type="file" id="bulkFileInput" accept=".xlsx,.xls,.json,.txt,.csv,.tsv" style="display:none;">
+                            </div>
+                            <div id="bulkFileInfo" style="display:none;margin-top:14px;">
+                                <div style="display:flex;align-items:center;gap:10px;background:var(--bg-input);border-radius:9px;padding:12px 16px;border:1px solid var(--border2);">
+                                    <i class="fas fa-file-check" style="color:var(--green);font-size:18px;"></i>
+                                    <div style="flex:1;">
+                                        <div id="bulkFileName" style="font-weight:700;font-size:14px;"></div>
+                                        <div id="bulkItemCount" style="color:var(--muted);font-size:12px;"></div>
+                                    </div>
+                                    <button class="btn-icon danger" onclick="bulkReset()" title="Remove file"><i class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-info-circle"></i> File Format Guide</div>
+                            <div class="info-box" style="margin-bottom:12px;">
+                                <p style="margin-bottom:6px;"><b>Excel (.xlsx):</b> First row = headers. Each subsequent row = one video.</p>
+                                <p style="margin-bottom:6px;"><b>JSON:</b> Array of objects, or <code>{"items": [...]}</code></p>
+                                <p style="margin-bottom:6px;"><b>TXT:</b> One title per line, or tab/pipe-separated with headers.</p>
+                                <hr style="border-color:rgba(255,255,255,.08);margin:10px 0;">
+                                <p style="margin:0;"><b>Required:</b> <code>title</code><br><b>Optional:</b> <code>description</code>&nbsp;<code>transcript</code>&nbsp;<code>template</code>&nbsp;<code>keywords</code>&nbsp;<code>folder</code></p>
+                            </div>
+                            <button class="btn-ghost w-100 btn-sm" onclick="bulkDownloadSample()"><i class="fas fa-download"></i> Download Sample JSON</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Preview & Configure -->
+            <div id="bulkStep2" style="display:none;">
+                <div class="row g-4">
+                    <div class="col-lg-7">
+                        <div class="card-dark">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                                <div class="card-title" style="margin-bottom:0;"><i class="fas fa-table"></i> Data Preview <span id="bulkPreviewCount" class="badge-accent" style="margin-left:8px;"></span></div>
+                                <button class="btn-icon" onclick="bulkBackToUpload()" title="Change file"><i class="fas fa-arrow-left"></i></button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead id="bulkTableHead" style="position:sticky;top:0;background:var(--bg-card);z-index:1;"></thead>
+                                    <tbody id="bulkTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-cog"></i> Generation Options</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:14px;">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="bulkChkDialogue">
+                                    <label class="form-check-label" for="bulkChkDialogue">Include dialogue</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="bulkChkImages" checked>
+                                    <label class="form-check-label" for="bulkChkImages">Image prompts</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="bulkChkVideos" checked>
+                                    <label class="form-check-label" for="bulkChkVideos">Video prompts</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="bulkChkI2V">
+                                    <label class="form-check-label" for="bulkChkI2V">Image-to-video</label>
+                                </div>
+                            </div>
+                            <hr class="divider">
+                            <div class="card-title" style="font-size:12px;"><i class="fas fa-hashtag"></i> Prompt Count & Style</div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-4">
+                                    <label class="form-label">Images</label>
+                                    <input type="number" class="form-control-dark" id="bulkNumImages" placeholder="Auto" min="0" max="200">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">Videos</label>
+                                    <input type="number" class="form-control-dark" id="bulkNumVideos" placeholder="Auto" min="0" max="200">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">I2V</label>
+                                    <input type="number" class="form-control-dark" id="bulkNumI2V" placeholder="Auto" min="0" max="200">
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label">Image Style</label>
+                                    <input type="text" class="form-control-dark" id="bulkImageStyle" placeholder="e.g. anime, photorealistic…">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label">Video Style</label>
+                                    <input type="text" class="form-control-dark" id="bulkVideoStyle" placeholder="e.g. cinematic, documentary…">
+                                </div>
+                            </div>
+                            <button class="btn-accent w-100 btn-lg" id="btnBulkStart" onclick="bulkStartJob()">
+                                <i class="fas fa-rocket"></i> Start Bulk Generation
+                            </button>
+                        </div>
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-chart-bar"></i> Summary</div>
+                            <div id="bulkSummary" style="line-height:2.4;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Progress -->
+            <div id="bulkStep3" style="display:none;">
+                <div class="card-dark">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+                        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-tasks"></i> Processing <span id="bulkJobId" class="badge-accent" style="margin-left:8px;"></span></div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-ghost btn-sm" id="btnBulkPause" onclick="bulkPause()"><i class="fas fa-pause"></i> Pause</button>
+                            <button class="btn-ghost btn-sm success" id="btnBulkResume" onclick="bulkResume()" style="display:none;"><i class="fas fa-play"></i> Resume</button>
+                            <button class="btn-ghost btn-sm danger" onclick="bulkCancel()"><i class="fas fa-stop"></i> Cancel</button>
+                        </div>
+                    </div>
+                    <div class="prog-track mb-2">
+                        <div id="bulkProgressBar" class="prog-fill" style="width:0%;"></div>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-bottom:18px;font-size:13px;flex-wrap:wrap;">
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(61,214,140,.12);color:var(--green);"><i class="fas fa-check-circle"></i></div>
+                            <div><div class="chip-val text-green" id="bulkDoneCount">0</div><div class="chip-label">Completed</div></div>
+                        </div>
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(255,92,92,.12);color:var(--red);"><i class="fas fa-times-circle"></i></div>
+                            <div><div class="chip-val text-red" id="bulkFailCount">0</div><div class="chip-label">Failed</div></div>
+                        </div>
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(255,255,255,.06);color:var(--muted2);"><i class="fas fa-list"></i></div>
+                            <div><div class="chip-val" id="bulkTotalCount">0</div><div class="chip-label">Total</div></div>
+                        </div>
+                        <div style="margin-left:auto;align-self:center;font-weight:700;font-size:14px;" id="bulkStatusLabel" class="text-accent">Running…</div>
+                    </div>
+                    <div style="max-height:360px;overflow-y:auto;" id="bulkItemsList"></div>
+                    <div id="bulkCompletedActions" style="display:none;margin-top:18px;" class="d-flex gap-2">
+                        <button class="btn-accent" onclick="bulkExport()"><i class="fas fa-download"></i> Export All as ZIP</button>
+                        <button class="btn-ghost" onclick="bulkRetryFailed()"><i class="fas fa-redo"></i> Retry Failed</button>
+                        <button class="btn-ghost" onclick="bulkNewJob()"><i class="fas fa-plus"></i> New Batch</button>
+                    </div>
+                </div>
+            </div>
+        </div>        <!-- ─── PAGE: Niche Hub ─── -->
+        <div class="page" id="page-niche" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-crosshairs"></i></span> Niche Command Center</h2>
+                    <p>Select a niche, generate viral titles, and launch the full production pipeline in one click</p>
+                </div>
+            </div>
+
+            <!-- Steps indicator -->
+            <div class="steps-bar">
+                <div class="step-item active" id="nicheStep1Ind">
+                    <div class="step-num">1</div>
+                    <span>Pick Niche</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="nicheStep2Ind">
+                    <div class="step-num">2</div>
+                    <span>Select Titles</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="nicheStep3Ind">
+                    <div class="step-num">3</div>
+                    <span>Pipeline</span>
+                </div>
+            </div>
+
+            <!-- Step 1: Niche Selection -->
+            <div id="nicheStep1">
+                <div class="card-dark" style="margin-bottom:16px;">
+                    <div class="card-title"><i class="fas fa-th"></i> Quick-Pick Presets</div>
+                    <div class="row g-2" id="nichePresetGrid"></div>
+                </div>
+                <div class="card-dark">
+                    <div class="card-title"><i class="fas fa-pencil-alt"></i> Custom Niche</div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-sm-6 col-md-4">
+                            <label class="form-label">Niche <span class="required">*</span></label>
+                            <input type="text" class="form-control-dark" id="nicheInput" placeholder="e.g. Dark Psychology, Stoicism…">
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label">Sub-Topic <span class="opt">optional</span></label>
+                            <input type="text" class="form-control-dark" id="nicheSubTopic" placeholder="e.g. Narcissism, Morning Habits…">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label">Title Count</label>
+                            <input type="number" class="form-control-dark" id="nicheTitleCount" value="15" min="5" max="30">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button class="btn-accent w-100 btn-lg" id="btnNicheTitles" onclick="nicheGenerateTitles()">
+                                <i class="fas fa-bolt"></i> Generate Titles
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Title Results + Pipeline Config -->
+            <div id="nicheStep2" style="display:none;">
+                <!-- Header row -->
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                    <div class="card-title" style="margin:0;"><i class="fas fa-fire text-accent"></i> Generated Titles &nbsp;<span id="nicheTitleCount2" class="badge-accent"></span></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn-ghost btn-sm" onclick="nicheToggleAll(true)"><i class="fas fa-check-double"></i> All</button>
+                        <button class="btn-ghost btn-sm" onclick="nicheToggleAll(false)"><i class="fas fa-square"></i> None</button>
+                        <button class="btn-ghost btn-sm" onclick="nicheBackToStep1()"><i class="fas fa-arrow-left"></i> Back</button>
+                    </div>
+                </div>
+
+                <!-- Analysis -->
+                <div class="niche-analysis-box" id="nicheAnalysis"></div>
+
+                <!-- Title grid -->
+                <div class="row g-3 mb-4" id="nicheTitleGrid" style="max-height:580px;overflow-y:auto;"></div>
+
+                <!-- Strategy tips -->
+                <div id="nicheStrategyTips" style="display:none;margin-bottom:20px;"></div>
+
+                <!-- Config + Launch -->
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-palette"></i> Style Configuration</div>
+                            <div class="mb-3">
+                                <label class="form-label">Image Style</label>
+                                <input type="text" class="form-control-dark" id="nicheImageStyle" placeholder="e.g. cinematic, anime, photorealistic…">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Video Style</label>
+                                <input type="text" class="form-control-dark" id="nicheVideoStyle" placeholder="e.g. documentary, dramatic, b-roll…">
+                            </div>
+                            <hr class="divider">
+                            <div class="card-title" style="font-size:12px;"><i class="fas fa-cog"></i> Generation Options</div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6 col-sm-3 col-lg-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="nicheChkDialogue">
+                                        <label class="form-check-label" for="nicheChkDialogue">Dialogue</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-3 col-lg-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="nicheChkImages" checked>
+                                        <label class="form-check-label" for="nicheChkImages">Image prompts</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-3 col-lg-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="nicheChkVideos" checked>
+                                        <label class="form-check-label" for="nicheChkVideos">Video prompts</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-sm-3 col-lg-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="nicheChkI2V">
+                                        <label class="form-check-label" for="nicheChkI2V">Image-to-video</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-4">
+                                    <label class="form-label">Images</label>
+                                    <input type="number" class="form-control-dark" id="nicheNumImages" placeholder="Auto" min="0" max="200">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">Videos</label>
+                                    <input type="number" class="form-control-dark" id="nicheNumVideos" placeholder="Auto" min="0" max="200">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">I2V</label>
+                                    <input type="number" class="form-control-dark" id="nicheNumI2V" placeholder="Auto" min="0" max="200">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="launch-panel h-100">
+                            <div class="card-title" style="color:var(--accent);margin-bottom:16px;"><i class="fas fa-rocket"></i> Launch Pipeline</div>
+                            <div id="nichePipelineSummary" style="margin-bottom:20px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                            <button class="btn-accent w-100 btn-lg" id="btnNichePipeline" onclick="nicheLaunchPipeline()">
+                                <i class="fas fa-play"></i> Generate Everything
+                            </button>
+                            <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">Script · Image prompts · Video prompts · SEO · Folder per title</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Pipeline Progress -->
+            <div id="nicheStep3" style="display:none;">
+                <div class="card-dark">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+                        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-tasks"></i> Pipeline Running <span id="nicheJobId" class="badge-accent" style="margin-left:8px;"></span></div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-ghost btn-sm" id="btnNichePause" onclick="nichePausePipeline()"><i class="fas fa-pause"></i> Pause</button>
+                            <button class="btn-ghost btn-sm success" id="btnNicheResume" onclick="nicheResumePipeline()" style="display:none;"><i class="fas fa-play"></i> Resume</button>
+                            <button class="btn-ghost btn-sm danger" onclick="nicheCancelPipeline()"><i class="fas fa-stop"></i> Cancel</button>
+                        </div>
+                    </div>
+                    <div class="prog-track mb-2">
+                        <div id="nicheProgressBar" class="prog-fill" style="width:0%;"></div>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(61,214,140,.12);color:var(--green);"><i class="fas fa-check-circle"></i></div>
+                            <div><div class="chip-val text-green" id="nicheDoneCount">0</div><div class="chip-label">Done</div></div>
+                        </div>
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(255,92,92,.12);color:var(--red);"><i class="fas fa-times-circle"></i></div>
+                            <div><div class="chip-val text-red" id="nicheFailCount">0</div><div class="chip-label">Failed</div></div>
+                        </div>
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(255,255,255,.06);color:var(--muted2);"><i class="fas fa-list"></i></div>
+                            <div><div class="chip-val" id="nicheTotalCount">0</div><div class="chip-label">Total</div></div>
+                        </div>
+                        <div style="margin-left:auto;align-self:center;font-weight:700;font-size:14px;" id="nicheStatusLabel" class="text-accent">Running…</div>
+                    </div>
+                    <div style="max-height:420px;overflow-y:auto;" id="nicheItemsList"></div>
+                    <div id="nicheCompletedActions" style="display:none;margin-top:18px;display:none;" class="d-flex gap-2">
+                        <button class="btn-accent" onclick="nicheExportZip()"><i class="fas fa-download"></i> Export All as ZIP</button>
+                        <button class="btn-ghost" onclick="nicheRetryFailed()"><i class="fas fa-redo"></i> Retry Failed</button>
+                        <button class="btn-ghost" onclick="nicheNewBatch()"><i class="fas fa-plus"></i> New Batch</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── PAGE: Adobe Stock Pipeline ─── -->
+        <div class="page" id="page-adobe" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-images"></i></span> Adobe Stock Pipeline</h2>
+                    <p>Fully automated 4K image prompt generation for high-CTR Adobe Stock monetization</p>
+                </div>
+            </div>
+
+            <!-- Steps indicator -->
+            <div class="steps-bar">
+                <div class="step-item active" id="adobeStep1Ind">
+                    <div class="step-num">1</div>
+                    <span>Pick Niche</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="adobeStep2Ind">
+                    <div class="step-num">2</div>
+                    <span>Configure</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="adobeStep3Ind">
+                    <div class="step-num">3</div>
+                    <span>Generate</span>
+                </div>
+            </div>
+
+            <!-- ── STEP 1: Niche Selection ── -->
+            <div id="adobeStep1">
+                <div class="card-dark" style="margin-bottom:16px;">
+                    <div class="card-title"><i class="fas fa-fire text-accent"></i> Top Niches by CTR & RPM (2026)</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;" id="adobeNicheGrid">
+                        <div class="empty-state" style="grid-column:1/-1;padding:24px 0;"><i class="fas fa-spinner fa-spin"></i><p>Loading niches…</p></div>
+                    </div>
+                </div>
+                <div class="card-dark">
+                    <div class="card-title"><i class="fas fa-pencil-alt"></i> Custom Niche Entry</div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-sm-6 col-md-5">
+                            <label class="form-label">Niche Name <span class="required">*</span></label>
+                            <input type="text" class="form-control-dark" id="adobeCustomNiche" placeholder="e.g. Eco Architecture, Food Photography…">
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-5">
+                            <label class="form-label">Sub-niche Focus <span class="opt">optional</span></label>
+                            <input type="text" class="form-control-dark" id="adobeCustomSubNiche" placeholder="e.g. Sustainable Skyscrapers, Street Tacos…">
+                        </div>
+                        <div class="col-12 col-md-2">
+                            <button class="btn-accent w-100 btn-lg" onclick="adobeSelectCustomNiche()">
+                                <i class="fas fa-arrow-right"></i> Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── STEP 2: Configure ── -->
+            <div id="adobeStep2" style="display:none;">
+                <div class="row g-4">
+                    <div class="col-lg-7">
+                        <!-- Selected Niche Info -->
+                        <div class="card-dark" style="margin-bottom:16px;" id="adobeSelectedNicheCard">
+                            <div class="card-title" id="adobeSelectedNicheTitle"><i class="fas fa-crosshairs text-accent"></i> Selected Niche</div>
+                            <div id="adobeNicheDetails" style="font-size:13px;color:var(--muted2);line-height:1.7;"></div>
+                        </div>
+                        <!-- Batch Configuration -->
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-sliders-h"></i> Batch Configuration</div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-sm-4">
+                                    <label class="form-label">Total Concepts</label>
+                                    <input type="number" class="form-control-dark" id="adobeTotalConcepts" value="10" min="1" max="100" oninput="adobeUpdateEstimate()">
+                                    <small class="text-muted" style="font-size:11px;">Unique image ideas</small>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label">Variations Each</label>
+                                    <input type="number" class="form-control-dark" id="adobeVariations" value="5" min="1" max="15" oninput="adobeUpdateEstimate()">
+                                    <small class="text-muted" style="font-size:11px;">Angles per concept</small>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label">Total Images</label>
+                                    <div class="form-control-dark" id="adobeTotalEstimate" style="color:var(--accent);font-weight:700;font-size:18px;text-align:center;padding:8px;">50</div>
+                                </div>
+                            </div>
+                            <hr class="divider">
+                            <div class="mb-3">
+                                <label class="form-label">Sub-niche Focus <span class="opt">optional</span></label>
+                                <input type="text" class="form-control-dark" id="adobeSubNicheInput" placeholder="e.g. Senior Fitness, Drone Delivery, Zero Waste Kitchen…">
+                                <small style="color:var(--muted);font-size:11px;">Leave blank to let AI cover all sub-niches evenly</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Custom Instructions <span class="opt">optional</span></label>
+                                <textarea class="form-control-dark" id="adobeCustomInstructions" rows="2" placeholder="e.g. Focus only on Southeast Asian settings. Avoid snow/winter. Use pastel color palettes…"></textarea>
+                            </div>
+                            <!-- Strategy tips for selected niche -->
+                            <div id="adobeNicheTips" style="display:none;"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="launch-panel h-100">
+                            <div class="card-title" style="color:var(--accent);margin-bottom:16px;"><i class="fas fa-rocket"></i> Launch Pipeline</div>
+                            <div id="adobeLaunchSummary" style="display:flex;flex-direction:column;gap:10px;font-size:13px;margin-bottom:20px;"></div>
+                            <!-- Generation Specs Preview -->
+                            <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px;margin-bottom:18px;font-size:12px;color:var(--muted2);line-height:1.8;">
+                                <div style="color:var(--text);font-weight:600;margin-bottom:8px;font-size:12px;"><i class="fas fa-camera-retro me-1 text-accent"></i> Every prompt includes:</div>
+                                <div>✓ Camera body + lens + aperture specs</div>
+                                <div>✓ Lighting (Kelvin temp, direction, ratio)</div>
+                                <div>✓ Composition rule + depth of field</div>
+                                <div>✓ 2026 authenticity + anti-AI-artifact tags</div>
+                                <div>✓ Adobe title formula (max CTR)</div>
+                                <div>✓ 35–50 layered Adobe keywords</div>
+                                <div>✓ Negative prompt to prevent rejections</div>
+                            </div>
+                            <div style="display:flex;gap:8px;margin-bottom:12px;">
+                                <button class="btn-ghost btn-sm" onclick="adobeBackToStep1()"><i class="fas fa-arrow-left"></i> Back</button>
+                            </div>
+                            <button class="btn-accent w-100 btn-lg" id="btnAdobeLaunch" onclick="adobeLaunchPipeline()">
+                                <i class="fas fa-play"></i> Generate All Prompts
+                            </button>
+                            <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">4K prompts · Adobe titles · 50 keywords each · TXT files</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── STEP 3: Pipeline Progress ── -->
+            <div id="adobeStep3" style="display:none;">
+                <div class="card-dark">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+                        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-tasks"></i> Generating Prompts <span id="adobeJobId" class="badge-accent" style="margin-left:8px;"></span></div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-ghost btn-sm" id="btnAdobePause" onclick="adobePause()"><i class="fas fa-pause"></i> Pause</button>
+                            <button class="btn-ghost btn-sm success" id="btnAdobeResume" onclick="adobeResume()" style="display:none;"><i class="fas fa-play"></i> Resume</button>
+                            <button class="btn-ghost btn-sm danger" onclick="adobeCancel()"><i class="fas fa-stop"></i> Cancel</button>
+                        </div>
+                    </div>
+
+                    <!-- Progress bar -->
+                    <div class="prog-track mb-2">
+                        <div id="adobeProgressBar" class="prog-fill" style="width:0%;"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                            <div class="stat-chip">
+                                <div class="chip-icon" style="background:rgba(61,214,140,.12);color:var(--green);"><i class="fas fa-check-circle"></i></div>
+                                <div><div class="chip-val text-green" id="adobeDoneImages">0</div><div class="chip-label">Images</div></div>
+                            </div>
+                            <div class="stat-chip">
+                                <div class="chip-icon" style="background:rgba(240,164,68,.12);color:var(--accent);"><i class="fas fa-layer-group"></i></div>
+                                <div><div class="chip-val text-accent" id="adobeDoneBatches">0</div><div class="chip-label">Batches Done</div></div>
+                            </div>
+                            <div class="stat-chip">
+                                <div class="chip-icon" style="background:rgba(255,92,92,.12);color:var(--red);"><i class="fas fa-times-circle"></i></div>
+                                <div><div class="chip-val text-red" id="adobeFailedBatches">0</div><div class="chip-label">Failed</div></div>
+                            </div>
+                            <div class="stat-chip">
+                                <div class="chip-icon" style="background:rgba(255,255,255,.06);color:var(--muted2);"><i class="fas fa-images"></i></div>
+                                <div><div class="chip-val" id="adobeTotalImagesDisplay">0</div><div class="chip-label">Total</div></div>
+                            </div>
+                        </div>
+                        <div style="align-self:center;font-weight:700;font-size:15px;" id="adobeStatusLabel" class="text-accent">Running…</div>
+                    </div>
+
+                    <!-- Batch Log -->
+                    <div style="max-height:360px;overflow-y:auto;" id="adobeBatchLog"></div>
+
+                    <!-- Output path -->
+                    <div id="adobeOutputPath" style="margin-top:16px;padding:12px;background:rgba(255,255,255,.04);border-radius:8px;display:none;">
+                        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;"><i class="fas fa-folder-open me-1 text-accent"></i> Output Directory:</div>
+                        <div id="adobeOutputPathText" style="font-size:12px;color:var(--muted2);word-break:break-all;"></div>
+                    </div>
+
+                    <!-- Completed actions -->
+                    <div id="adobeCompletedActions" style="display:none;margin-top:18px;" class="d-flex gap-2 flex-wrap">
+                        <button class="btn-accent" onclick="adobeNewBatch()"><i class="fas fa-plus"></i> New Batch</button>
+                        <button class="btn-ghost" onclick="adobeGoToStep(1)"><i class="fas fa-crosshairs"></i> Change Niche</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═════════════════ MODAL: Template Editor ═════════════════ -->
+    <div class="modal fade" id="templateModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="templateModalTitle">Create Template</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Template Name</label>
+                        <input type="text" class="form-control-dark" id="tplName" placeholder="Template name…">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <span style="font-size:13px;font-weight:700;color:var(--text);"><i class="fas fa-sitemap me-2 text-accent"></i>Structure</span>
+                        <button class="btn-ghost btn-sm" onclick="tplAddFolder()"><i class="fas fa-plus"></i> Add Folder</button>
+                    </div>
+                    <div id="tplStructure" class="structure-tree"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn-accent" id="tplSaveBtn" onclick="tplSave()"><i class="fas fa-save"></i> Save Template</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═════════════════ MODAL: File Content Editor ═════════════════ -->
+    <div class="modal fade" id="fileEditModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="fileEditTitle">Edit File Content</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control-dark" id="fileEditContent" rows="16" placeholder="Enter file content… Use {keyword} for placeholder tokens."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn-accent" onclick="fileEditSave()"><i class="fas fa-save"></i> Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═════════════════ MODAL: View File ═════════════════ -->
+    <div class="modal fade" id="viewFileModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewFileTitle">File</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="output-panel" id="viewFileContent" style="max-height:600px;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="copyTextFrom('viewFileContent')"><i class="fas fa-copy"></i> Copy</button>
+                    <button type="button" class="btn-ghost" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // Global State
+        // ═══════════════════════════════════════════════════════════════════
+        let generatedFiles = {};
+        let currentOutputTab = '';
+        let editingTemplate = null;   // name of template being edited, or null for create
+        let editingFileKey = '';       // e.g. "Voice_Over/voiceover_script"
+        let pcCurrentTemplate = null;  // Prompt Creator template data
+        let pcCurrentContent = '';     // raw file content for keyword replacement
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Utility
+        // ═══════════════════════════════════════════════════════════════════
+        function toast(msg, type = 'info') {
+            const c = document.getElementById('toastContainer');
+            const ic = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+            const div = document.createElement('div');
+            div.className = `toast-msg ${type}`;
+            div.innerHTML = `<i class="fas ${ic} t-icon"></i><span>${msg}</span>`;
+            c.appendChild(div);
+            setTimeout(() => { div.style.opacity='0'; div.style.transform='translateX(120%)'; div.style.transition='all .3s'; setTimeout(()=>div.remove(),300); }, 3500);
+        }
+
+        async function api(url, opts = {}) {
+            const res = await fetch(url, opts);
+            const contentType = res.headers.get('content-type') || '';
+            let data;
+            try {
+                if (contentType.includes('application/json')) data = await res.json();
+                else data = { success: res.ok, message: await res.text() };
+            } catch (e) {
+                data = { success: false, message: 'Invalid server response' };
+            }
+            if (!res.ok && data.success === undefined) data.success = false;
+            if (!res.ok && !data.message) data.message = `Request failed (${res.status})`;
+            return data;
+        }
+
+        function esc(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Navigation
+        // ═══════════════════════════════════════════════════════════════════
+        document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                el.classList.add('active');
+                document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+                document.getElementById('page-' + el.dataset.page).style.display = 'block';
+
+                // Close mobile sidebar after navigation
+                closeMobileMenu();
+
+                // refresh data on page switch
+                const pg = el.dataset.page;
+                if (pg === 'niche') loadNichePresets();
+                if (pg === 'adobe') loadAdobeNiches();
+                if (pg === 'templates') loadTemplates();
+                if (pg === 'projects') loadProjects();
+                if (pg === 'prompt-creator') refreshTemplateDropdowns();
+                if (pg === 'folder-creator') refreshTemplateDropdowns();
+                if (pg === 'logs') loadLogs('all');
+                if (pg !== 'niche' && nichePollTimer) {
+                    clearInterval(nichePollTimer);
+                    nichePollTimer = null;
+                }
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // GENERATE PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        async function generate() {
+            const title = document.getElementById('genTitle').value.trim();
+            const folder = document.getElementById('genFolder').value.trim();
+            if (!title) return toast('Title is required', 'error');
+            if (!folder) return toast('Folder name is required', 'error');
+
+            const payload = {
+                title,
+                folder,
+                description: document.getElementById('genDesc').value,
+                transcript: document.getElementById('genTranscript').value,
+                template: document.getElementById('genTemplate').value,
+                include_dialogue: document.getElementById('chkDialogue').checked,
+                gen_image_prompts: document.getElementById('chkImages').checked,
+                gen_video_prompts: document.getElementById('chkVideos').checked,
+                gen_i2v_prompts: document.getElementById('chkI2V').checked,
+                num_image_prompts: parseInt(document.getElementById('genNumImages').value) || 0,
+                num_video_prompts: parseInt(document.getElementById('genNumVideos').value) || 0,
+                num_i2v_prompts: parseInt(document.getElementById('genNumI2V').value) || 0,
+                image_style: document.getElementById('genImageStyle').value.trim(),
+                video_style: document.getElementById('genVideoStyle').value.trim(),
+            };
+
+            document.getElementById('spinner').classList.add('show');
+            document.getElementById('btnGenerate').disabled = true;
+
+            try {
+                const data = await api('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                document.getElementById('spinner').classList.remove('show');
+                document.getElementById('btnGenerate').disabled = false;
+
+                if (data.success) {
+                    generatedFiles = data.files;
+                    toast(`Generated ${data.scene_count} scenes!`, 'success');
+                    showOutput(data);
+                } else {
+                    toast(data.message || 'Generation failed', 'error');
+                }
+            } catch (e) {
+                document.getElementById('spinner').classList.remove('show');
+                document.getElementById('btnGenerate').disabled = false;
+                toast('Network error: ' + e.message, 'error');
+            }
+        }
+
+        function showOutput(data) {
+            document.getElementById('outputPlaceholder').style.display = 'none';
+            document.getElementById('outputCard').style.display = 'block';
+            document.getElementById('outputTitle').textContent = data.title || '';
+            document.getElementById('outputPath').textContent = data.project_path || '';
+
+            const tabsBar = document.getElementById('outputTabsBar');
+            tabsBar.innerHTML = '';
+            const keys = Object.keys(generatedFiles);
+            keys.forEach((key, i) => {
+                const tab = document.createElement('div');
+                tab.className = 'output-tab' + (i === 0 ? ' active' : '');
+                tab.textContent = key;
+                tab.onclick = () => switchOutputTab(key);
+                tabsBar.appendChild(tab);
+            });
+
+            if (keys.length > 0) switchOutputTab(keys[0]);
+        }
+
+        function switchOutputTab(key) {
+            currentOutputTab = key;
+            document.querySelectorAll('.output-tab').forEach(t => {
+                t.classList.toggle('active', t.textContent === key);
+            });
+            document.getElementById('outputContent').textContent = generatedFiles[key] || '';
+        }
+
+        function copyOutput() {
+            const text = generatedFiles[currentOutputTab] || '';
+            navigator.clipboard.writeText(text).then(() => toast('Copied!', 'success'));
+        }
+
+        function copyTextFrom(id) {
+            const text = document.getElementById(id).textContent || '';
+            navigator.clipboard.writeText(text).then(() => toast('Copied!', 'success'));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PROJECTS PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        async function loadProjects() {
+            const data = await api('/api/projects');
+            const el = document.getElementById('projectList');
+            if (!data.success || !data.projects.length) {
+                el.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No projects yet. Generate your first content!</p></div>';
+                return;
+            }
+            el.innerHTML = data.projects.map(p => `
+        <div class="project-card" onclick="toggleProject(this)">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="pc-name"><i class="fas fa-folder me-2 text-accent"></i>${esc(p.name)}</div>
+                <span class="badge-accent">${p.files.length} files</span>
+            </div>
+            <div class="project-files" style="display:none;">
+                ${p.files.map(f => `
+                    <div class="project-file-item">
+                        <i class="fas fa-file-alt"></i>
+                        <span style="flex:1;">${esc(f)}</span>
+                        <button class="btn-icon" onclick="event.stopPropagation(); viewProjectFile('${esc(p.name)}', '${esc(f)}')" title="View"><i class="fas fa-eye"></i></button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+        }
+
+        function toggleProject(el) {
+            const f = el.querySelector('.project-files');
+            f.style.display = f.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function viewProjectFile(project, filePath) {
+            const data = await api(`/api/project/${encodeURIComponent(project)}/file?path=${encodeURIComponent(filePath)}`);
+            if (data.success) {
+                document.getElementById('viewFileTitle').textContent = filePath;
+                document.getElementById('viewFileContent').textContent = data.content;
+                new bootstrap.Modal(document.getElementById('viewFileModal')).show();
+            } else {
+                toast(data.message, 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // TEMPLATES PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        async function loadTemplates() {
+            const data = await api('/api/templates');
+            const el = document.getElementById('templateList');
+            if (!data.success) { el.innerHTML = '<p style="color: var(--danger)">Failed to load.</p>'; return; }
+
+            const templates = data.templates;
+            const names = Object.keys(templates);
+            if (!names.length) {
+                el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">No templates yet. Create one!</div>';
+                return;
+            }
+
+            el.innerHTML = names.map(name => {
+                const tpl = templates[name];
+                const structure = tpl.structure || {};
+                const folders = Object.keys(structure);
+                return `
+            <div class="card-dark elevated">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                    <div class="card-title" style="margin-bottom:0;"><i class="fas fa-layer-group"></i> ${esc(name)}</div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn-ghost btn-sm" onclick="editTemplate('${esc(name)}')" title="Edit"><i class="fas fa-pen"></i> Edit</button>
+                        <button class="btn-ghost btn-sm danger" onclick="deleteTemplate('${esc(name)}')" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    ${folders.map(f => {
+                    const files = (structure[f].files || []);
+                    return `<div style="background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;min-width:140px;">
+                            <div style="font-weight:700;margin-bottom:6px;"><i class="fas fa-folder me-2 text-accent"></i>${esc(f)}</div>
+                            ${files.map(file => `<div style="font-size:12px;color:var(--muted2);padding:2px 0 2px 20px;"><i class="fas fa-file-alt me-2" style="font-size:10px;"></i>${esc(file)}</div>`).join('')}
+                        </div>`;
+                }).join('')}
+                </div>
+            </div>
+        `;
+            }).join('');
+        }
+
+        function showCreateTemplate() {
+            editingTemplate = null;
+            document.getElementById('templateModalTitle').textContent = 'Create Template';
+            document.getElementById('tplName').value = '';
+            document.getElementById('tplStructure').innerHTML = '';
+            tplAddFolder('Voice_Over', ['voiceover_script']);
+            tplAddFolder('Images', ['hook_images', 'actual_images']);
+            tplAddFolder('Videos', ['hook_video', 'actual_video']);
+            new bootstrap.Modal(document.getElementById('templateModal')).show();
+        }
+
+        async function editTemplate(name) {
+            const data = await api(`/api/templates/${encodeURIComponent(name)}`);
+            if (!data.success) return toast(data.message, 'error');
+            editingTemplate = name;
+            document.getElementById('templateModalTitle').textContent = 'Edit Template';
+            document.getElementById('tplName').value = name;
+            document.getElementById('tplStructure').innerHTML = '';
+
+            const structure = data.template.structure || {};
+            for (const [folderName, folderData] of Object.entries(structure)) {
+                tplAddFolder(folderName, folderData.files || [], folderData.file_contents || {});
+            }
+            new bootstrap.Modal(document.getElementById('templateModal')).show();
+        }
+
+        async function deleteTemplate(name) {
+            if (!confirm(`Delete template "${name}"?`)) return;
+            const data = await api(`/api/templates/${encodeURIComponent(name)}`, { method: 'DELETE' });
+            toast(data.message, data.success ? 'success' : 'error');
+            if (data.success) loadTemplates();
+        }
+
+        // Structure builder
+        function tplAddFolder(name = '', files = [], fileContents = {}) {
+            const container = document.getElementById('tplStructure');
+            const folderId = 'folder_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            const div = document.createElement('div');
+            div.className = 'tree-folder';
+            div.dataset.folderId = folderId;
+
+            let filesHtml = files.map(f => {
+                const content = fileContents[f] || '';
+                return `<div class="tree-file" data-content="${btoa(unescape(encodeURIComponent(content)))}">
+            <i class="fas fa-file-alt"></i>
+            <input type="text" value="${esc(f)}" placeholder="file_name">
+            <button class="btn-icon" onclick="tplEditFileContent(this)" title="Edit content"><i class="fas fa-pen"></i></button>
+            <button class="btn-icon danger" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+        </div>`;
+            }).join('');
+
+            div.innerHTML = `
+        <div class="tree-folder-header">
+            <i class="fas fa-folder"></i>
+            <input type="text" value="${esc(name)}" placeholder="Folder name">
+            <button class="btn-icon" onclick="tplAddFile('${folderId}')" title="Add file"><i class="fas fa-plus"></i></button>
+            <button class="btn-icon danger" onclick="this.closest('.tree-folder').remove()" title="Remove folder"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="tree-files">${filesHtml}</div>
+    `;
+            container.appendChild(div);
+        }
+
+        function tplAddFile(folderId) {
+            const folder = document.querySelector(`[data-folder-id="${folderId}"] .tree-files`);
+            const div = document.createElement('div');
+            div.className = 'tree-file';
+            div.dataset.content = '';
+            div.innerHTML = `
+        <i class="fas fa-file-alt"></i>
+        <input type="text" value="" placeholder="file_name">
+        <button class="btn-icon" onclick="tplEditFileContent(this)" title="Edit content"><i class="fas fa-pen"></i></button>
+        <button class="btn-icon danger" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+    `;
+            folder.appendChild(div);
+        }
+
+        function tplEditFileContent(btn) {
+            const fileDiv = btn.closest('.tree-file');
+            const fileName = fileDiv.querySelector('input').value || 'file';
+            const encoded = fileDiv.dataset.content || '';
+            let content = '';
+            try { content = decodeURIComponent(escape(atob(encoded))); } catch (e) { content = ''; }
+
+            editingFileKey = fileDiv;
+            document.getElementById('fileEditTitle').textContent = 'Edit: ' + fileName;
+            document.getElementById('fileEditContent').value = content;
+            new bootstrap.Modal(document.getElementById('fileEditModal')).show();
+        }
+
+        function fileEditSave() {
+            const content = document.getElementById('fileEditContent').value;
+            if (editingFileKey && editingFileKey.dataset !== undefined) {
+                editingFileKey.dataset.content = btoa(unescape(encodeURIComponent(content)));
+            }
+            bootstrap.Modal.getInstance(document.getElementById('fileEditModal')).hide();
+            toast('Content saved', 'success');
+        }
+
+        async function tplSave() {
+            const name = document.getElementById('tplName').value.trim();
+            if (!name) return toast('Template name is required', 'error');
+
+            const structure = {};
+            document.querySelectorAll('#tplStructure .tree-folder').forEach(folder => {
+                const folderName = folder.querySelector('.tree-folder-header input').value.trim();
+                if (!folderName) return;
+                const files = [];
+                const fileContents = {};
+                folder.querySelectorAll('.tree-file').forEach(file => {
+                    const fileName = file.querySelector('input').value.trim();
+                    if (!fileName) return;
+                    files.push(fileName);
+                    const encoded = file.dataset.content || '';
+                    try { fileContents[fileName] = decodeURIComponent(escape(atob(encoded))); } catch (e) { fileContents[fileName] = ''; }
+                });
+                structure[folderName] = { files, file_contents: fileContents };
+            });
+
+            let data;
+            if (editingTemplate) {
+                data = await api(`/api/templates/${encodeURIComponent(editingTemplate)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, structure }),
+                });
+            } else {
+                data = await api('/api/templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, structure }),
+                });
+            }
+
+            toast(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();
+                loadTemplates();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PROMPT CREATOR PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        async function pcLoadTemplate() {
+            const name = document.getElementById('pcTemplate').value;
+            const folderSel = document.getElementById('pcFolder');
+            const fileSel = document.getElementById('pcFile');
+            folderSel.innerHTML = '<option value="">Select folder...</option>';
+            fileSel.innerHTML = '<option value="">Select file...</option>';
+            document.getElementById('pcKeywords').innerHTML = '';
+            if (!name) { pcCurrentTemplate = null; return; }
+
+            const data = await api(`/api/templates/${encodeURIComponent(name)}`);
+            if (!data.success) return toast(data.message, 'error');
+            pcCurrentTemplate = data.template;
+
+            const structure = pcCurrentTemplate.structure || {};
+            for (const folder of Object.keys(structure)) {
+                const opt = document.createElement('option');
+                opt.value = folder;
+                opt.textContent = folder;
+                folderSel.appendChild(opt);
+            }
+        }
+
+        function pcLoadFolder() {
+            const folder = document.getElementById('pcFolder').value;
+            const fileSel = document.getElementById('pcFile');
+            fileSel.innerHTML = '<option value="">Select file...</option>';
+            document.getElementById('pcKeywords').innerHTML = '';
+            if (!folder || !pcCurrentTemplate) return;
+
+            const files = pcCurrentTemplate.structure[folder]?.files || [];
+            files.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                fileSel.appendChild(opt);
+            });
+        }
+
+        function pcLoadFile() {
+            const folder = document.getElementById('pcFolder').value;
+            const file = document.getElementById('pcFile').value;
+            if (!folder || !file || !pcCurrentTemplate) return;
+
+            pcCurrentContent = pcCurrentTemplate.structure[folder]?.file_contents?.[file] || '';
+            // Detect keywords
+            const kwDiv = document.getElementById('pcKeywords');
+            const matches = [...new Set((pcCurrentContent.match(/\{([^}]+)\}/g) || []).map(m => m.slice(1, -1)))];
+            if (!matches.length) {
+                kwDiv.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">No {keywords} found in this file.</p>';
+                return;
+            }
+            kwDiv.innerHTML = '<label class="form-label" style="margin-top: 8px;">Keywords</label>' +
+                matches.map(kw => `
+            <div class="mb-2">
+                <label style="font-size: 12px; color: var(--accent);">{${esc(kw)}}</label>
+                <input type="text" class="form-control form-control-dark form-control-sm" data-keyword="${esc(kw)}" placeholder="Replace with...">
+            </div>
+        `).join('');
+        }
+
+        async function pcGenerate() {
+            if (!pcCurrentContent) return toast('Select a file first', 'error');
+            const replacements = {};
+            document.querySelectorAll('#pcKeywords input[data-keyword]').forEach(inp => {
+                if (inp.value.trim()) replacements[inp.dataset.keyword] = inp.value.trim();
+            });
+
+            const data = await api('/api/generate-prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: pcCurrentContent, replacements }),
+            });
+
+            if (data.success) {
+                document.getElementById('pcOutput').textContent = data.result;
+                toast('Prompt generated!', 'success');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // FOLDER CREATOR PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        async function fcLoadExisting() {
+            const name = document.getElementById('fcTemplate').value;
+            const el = document.getElementById('fcExisting');
+            if (!name) { el.innerHTML = '<span style="color:var(--text-muted)">Select a template.</span>'; return; }
+
+            // Also preview structure
+            const tplData = await api(`/api/templates/${encodeURIComponent(name)}`);
+            if (tplData.success) {
+                const structure = tplData.template.structure || {};
+                let html = '';
+                for (const [folder, data] of Object.entries(structure)) {
+                    html += `<div style="margin-bottom: 6px;"><i class="fas fa-folder" style="color: var(--accent); margin-right: 6px;"></i><b>${esc(folder)}</b></div>`;
+                    (data.files || []).forEach(f => {
+                        html += `<div style="padding-left: 24px;"><i class="fas fa-file-alt" style="color: var(--text-muted); font-size: 11px; margin-right: 6px;"></i>${esc(f)}.txt</div>`;
+                    });
+                }
+                document.getElementById('fcPreview').innerHTML = html || '<span style="color:var(--text-muted)">Empty structure.</span>';
+            }
+
+            const data = await api(`/api/get-existing/${encodeURIComponent(name)}`);
+            if (data.success && data.folders.length) {
+                el.innerHTML = data.folders.map(f => `<div class="py-1"><i class="fas fa-folder-open me-2" style="color: var(--accent);"></i>${esc(f)}</div>`).join('');
+            } else {
+                el.innerHTML = '<span style="color: var(--text-muted);">No projects yet.</span>';
+            }
+        }
+
+        async function fcCreate() {
+            const templateName = document.getElementById('fcTemplate').value;
+            const projectName = document.getElementById('fcProject').value.trim();
+            if (!templateName) return toast('Select a template', 'error');
+            if (!projectName) return toast('Enter a project name', 'error');
+
+            // Get template structure and prepare file_contents
+            const tplData = await api(`/api/templates/${encodeURIComponent(templateName)}`);
+            if (!tplData.success) return toast(tplData.message, 'error');
+
+            const structure = tplData.template.structure || {};
+            const fileContents = {};
+            for (const [folder, data] of Object.entries(structure)) {
+                (data.files || []).forEach(f => {
+                    fileContents[`${folder}/${f}`] = (data.file_contents || {})[f] || '';
+                });
+            }
+
+            const data = await api('/api/create-folders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_name: templateName, project_name: projectName, file_contents: fileContents }),
+            });
+
+            toast(data.message, data.success ? 'success' : 'error');
+            if (data.success) {
+                document.getElementById('fcProject').value = '';
+                fcLoadExisting();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // BULK AUTOMATION PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        let bulkItems = [];
+        let bulkCurrentJobId = null;
+        let bulkPollTimer = null;
+
+        (function initDropZone() {
+            document.addEventListener('DOMContentLoaded', () => {
+                const dz = document.getElementById('bulkDropZone');
+                const fi = document.getElementById('bulkFileInput');
+                if (!dz || !fi) return;
+                dz.addEventListener('click', () => fi.click());
+                dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+                dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+                dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files.length) { fi.files = e.dataTransfer.files; bulkUploadFile(e.dataTransfer.files[0]); } });
+                fi.addEventListener('change', () => { if (fi.files.length) bulkUploadFile(fi.files[0]); });
+            });
+        })();
+
+        async function bulkUploadFile(file) {
+            const fd = new FormData(); fd.append('file', file);
+            document.getElementById('bulkDropZone').innerHTML = '<div class="dz-icon"><i class="fas fa-spinner fa-spin"></i></div><div class="dz-sub">Parsing file…</div>';
+            try {
+                const res = await fetch('/api/bulk/upload', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    bulkItems = data.items;
+                    document.getElementById('bulkFileName').textContent = data.filename;
+                    document.getElementById('bulkItemCount').textContent = data.item_count + ' items parsed';
+                    document.getElementById('bulkFileInfo').style.display = 'block';
+                    toast(`Parsed ${data.item_count} items from ${data.filename}`, 'success');
+                    bulkShowPreview(data.items, data.detected_fields);
+                } else { toast(data.message, 'error'); bulkResetDZ(); }
+            } catch (e) { toast('Upload failed: ' + e.message, 'error'); bulkResetDZ(); }
+        }
+
+        function bulkResetDZ() {
+            document.getElementById('bulkDropZone').innerHTML = '<div class="dz-icon"><i class="fas fa-file-upload"></i></div><div class="dz-title">Drop your file here or click to browse</div><div class="dz-sub">Supports: .xlsx · .json · .txt</div><input type="file" id="bulkFileInput" accept=".xlsx,.xls,.json,.txt,.csv,.tsv" style="display:none;">';
+            // Re-attach event listeners
+            const fi = document.getElementById('bulkFileInput');
+            if(fi) fi.addEventListener('change', () => { if(fi.files.length) bulkUploadFile(fi.files[0]); });
+        }
+        function bulkReset() {
+            bulkItems = []; document.getElementById('bulkFileInfo').style.display = 'none';
+            document.getElementById('bulkFileInput').value = '';
+            document.getElementById('bulkStep1').style.display = 'block';
+            document.getElementById('bulkStep2').style.display = 'none';
+            document.getElementById('bulkStep3').style.display = 'none';
+            bulkResetDZ();
+        }
+        function bulkBackToUpload() { document.getElementById('bulkStep1').style.display = 'block'; document.getElementById('bulkStep2').style.display = 'none'; setBulkStepActive(1); }
+
+        function bulkShowPreview(items, fields) {
+            document.getElementById('bulkStep1').style.display = 'none';
+            document.getElementById('bulkStep2').style.display = 'block';
+            document.getElementById('bulkPreviewCount').textContent = items.length + ' items';
+            setBulkStepActive(2);
+            const cols = ['title', 'description', 'transcript', 'prompt_template', 'keywords', 'folder', 'or_words'].filter(f => fields.includes(f));
+            document.getElementById('bulkTableHead').innerHTML = '<tr>' + cols.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
+            const mx = Math.min(items.length, 50); let html = '';
+            for (let i = 0; i < mx; i++) html += '<tr>' + cols.map(c => `<td title="${esc(items[i][c] || '')}">${esc((items[i][c] || '').substring(0, 80))}</td>`).join('') + '</tr>';
+            if (items.length > 50) html += `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--muted);padding:14px;">… and ${items.length - 50} more items</td></tr>`;
+            document.getElementById('bulkTableBody').innerHTML = html;
+            document.getElementById('bulkSummary').innerHTML = `
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 0;"><i class="fas fa-video text-accent"></i><span><b>${items.length}</b> videos to generate</span></div>
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 0;"><i class="fas fa-columns text-accent"></i><span>Fields: <code>${cols.join(', ')}</code></span></div>
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 0;"><i class="fas fa-clock text-accent"></i><span>Est. time: ~${Math.ceil(items.length * 0.5)} min</span></div>`;
+        }
+
+        async function bulkStartJob() {
+            if (!bulkItems.length) return toast('No items loaded', 'error');
+            const opts = {
+                include_dialogue: document.getElementById('bulkChkDialogue').checked,
+                gen_image_prompts: document.getElementById('bulkChkImages').checked,
+                gen_video_prompts: document.getElementById('bulkChkVideos').checked,
+                gen_i2v_prompts: document.getElementById('bulkChkI2V').checked,
+                num_image_prompts: parseInt(document.getElementById('bulkNumImages').value) || 0,
+                num_video_prompts: parseInt(document.getElementById('bulkNumVideos').value) || 0,
+                num_i2v_prompts: parseInt(document.getElementById('bulkNumI2V').value) || 0,
+                image_style: document.getElementById('bulkImageStyle').value.trim(),
+                video_style: document.getElementById('bulkVideoStyle').value.trim(),
+            };
+            document.getElementById('btnBulkStart').disabled = true;
+            try {
+                const d = await api('/api/bulk/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: bulkItems, options: opts }) });
+                if (d.success) { bulkCurrentJobId = d.job_id; toast(`Job ${d.job_id} started with ${d.total} items!`, 'success'); bulkShowProgress(d.job_id); }
+                else toast(d.message, 'error');
+            } catch (e) { toast('Failed: ' + e.message, 'error'); }
+            document.getElementById('btnBulkStart').disabled = false;
+        }
+
+        function setBulkStepActive(n) {
+            [1,2,3].forEach(i => {
+                const el = document.getElementById('bulkStep'+i+'Ind');
+                if(!el) return;
+                el.classList.remove('active','done');
+                if(i < n) el.classList.add('done');
+                else if(i === n) el.classList.add('active');
+            });
+        }
+        function bulkShowProgress(jid) {
+            document.getElementById('bulkStep2').style.display = 'none';
+            document.getElementById('bulkStep3').style.display = 'block';
+            setBulkStepActive(3);
+            document.getElementById('bulkJobId').textContent = '#' + jid;
+            document.getElementById('bulkCompletedActions').style.display = 'none';
+            document.getElementById('btnBulkPause').style.display = '';
+            document.getElementById('btnBulkResume').style.display = 'none';
+            bulkPollStatus(jid);
+        }
+
+        function bulkPollStatus(jid) {
+            if (bulkPollTimer) clearInterval(bulkPollTimer);
+            bulkPollTimer = setInterval(async () => {
+                try {
+                    const d = await api(`/api/bulk/status/${jid}`); if (!d.success) return;
+                    const j = d.job, pct = Math.round(j.progress);
+                    document.getElementById('bulkProgressBar').style.width = pct + '%';
+                    document.getElementById('bulkProgressBar').textContent = pct + '%';
+                    document.getElementById('bulkDoneCount').textContent = j.completed_count;
+                    document.getElementById('bulkFailCount').textContent = j.failed_count;
+                    document.getElementById('bulkTotalCount').textContent = j.total_count;
+                    const sm = { running: 'Running...', paused: 'Paused', cancelled: 'Cancelled', completed: 'Completed!' };
+                    document.getElementById('bulkStatusLabel').textContent = sm[j.status] || j.status;
+                    if (j.status === 'paused') { document.getElementById('btnBulkPause').style.display = 'none'; document.getElementById('btnBulkResume').style.display = ''; }
+                    else { document.getElementById('btnBulkPause').style.display = ''; document.getElementById('btnBulkResume').style.display = 'none'; }
+                    const im = { queued: 'fa-clock', processing: 'fa-spinner fa-spin', completed: 'fa-check-circle', failed: 'fa-times-circle' };
+                    let h = '';
+                    j.items.forEach((it, i) => {
+                        const ic = im[it.status] || 'fa-circle', er = it.error ? ` — <span style="color:var(--danger);font-size:12px;">${esc(it.error).substring(0, 60)}</span>` : '', sc = it.result ? ` <span class="badge-accent">${it.result.scene_count} scenes</span>` : '';
+                        h += `<div class="bulk-item-row ${it.status}"><span class="status-icon"><i class="fas ${ic}"></i></span><span style="color:var(--text-muted);width:30px;">${i + 1}.</span><span class="item-title">${esc(it.title)}</span>${sc}${er}</div>`;
+                    });
+                    document.getElementById('bulkItemsList').innerHTML = h;
+                    if (j.status === 'completed' || j.status === 'cancelled') {
+                        clearInterval(bulkPollTimer);
+                        document.getElementById('bulkCompletedActions').style.display = 'flex';
+                        if (j.status === 'completed') { document.getElementById('bulkProgressBar').style.width = '100%'; document.getElementById('bulkProgressBar').textContent = '100%'; }
+                        toast(j.status === 'completed' ? `Done! ${j.completed_count}/${j.total_count} succeeded.` : 'Job cancelled.', j.status === 'completed' ? 'success' : 'info');
+                    }
+                } catch (e) { console.error('Poll err:', e); }
+            }, 2000);
+        }
+
+        async function bulkPause() { if (!bulkCurrentJobId) return; const d = await api(`/api/bulk/pause/${bulkCurrentJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
+        async function bulkResume() { if (!bulkCurrentJobId) return; const d = await api(`/api/bulk/resume/${bulkCurrentJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
+        async function bulkCancel() { if (!bulkCurrentJobId) return; if (!confirm('Cancel this bulk job?')) return; const d = await api(`/api/bulk/cancel/${bulkCurrentJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
+        function bulkExport() { if (bulkCurrentJobId) window.location.href = `/api/bulk/export/${bulkCurrentJobId}`; }
+        async function bulkRetryFailed() { if (!bulkCurrentJobId) return; const d = await api(`/api/bulk/retry/${bulkCurrentJobId}`, { method: 'POST' }); if (d.success) { bulkCurrentJobId = d.job_id; toast(d.message, 'success'); bulkShowProgress(d.job_id); } else toast(d.message, 'error'); }
+        function bulkNewJob() { bulkReset(); if (bulkPollTimer) clearInterval(bulkPollTimer); }
+        async function bulkDownloadSample() { const d = await api('/api/bulk/sample'); if (!d.success) return; const b = new Blob([JSON.stringify(d.sample.example, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'bulk_sample.json'; a.click(); toast('Sample downloaded!', 'success'); }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Template Dropdowns (shared)
+        // ═══════════════════════════════════════════════════════════════════
+        async function refreshTemplateDropdowns() {
+            const data = await api('/api/templates');
+            if (!data.success) return;
+            const names = Object.keys(data.templates);
+
+            ['genTemplate', 'pcTemplate', 'fcTemplate'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (!sel) return;
+                const current = sel.value;
+                const firstOpt = sel.querySelector('option:first-child');
+                sel.innerHTML = '';
+                sel.appendChild(firstOpt || Object.assign(document.createElement('option'), { value: '', textContent: 'None' }));
+
+                names.forEach(n => {
+                    const opt = document.createElement('option');
+                    opt.value = n;
+                    opt.textContent = n;
+                    if (n === current) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // NICHE HUB PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        let nichePresets = {};
+        let nicheTitles = [];
+        let nichePipelineJobId = null;
+        let nichePollTimer = null;
+
+        async function loadNichePresets() {
+            const d = await api('/api/niche/presets');
+            if (!d.success) return;
+            nichePresets = d.presets;
+            const grid = document.getElementById('nichePresetGrid');
+            const emojiMap = {
+                'Dark Psychology':'🧠','Body Language':'👁️','True Crime':'🔍','Stoicism':'⚖️',
+                'Mindfulness':'🧘','Success':'🚀','Finance':'💰','Relationships':'❤️',
+                'Health':'💪','History':'📜','Science':'🔬','Philosophy':'💡'
+            };
+        grid.innerHTML = Object.entries(nichePresets).map(([name, p]) => {
+                const emoji = emojiMap[name] || '✨';
+                return `
+                <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-6 mb-1">
+                    <div class="niche-preset-card" data-name="${esc(name)}" title="${esc(p.description)}">
+                        <div class="niche-selected-check"><i class="fas fa-check"></i></div>
+                        <span class="niche-preset-emoji">${emoji}</span>
+                        <div class="niche-preset-name">${esc(name)}</div>
+                        <div class="niche-preset-desc">${esc(p.description).length > 60 ? esc(p.description).substring(0, 60) + '…' : esc(p.description)}</div>
+                    </div>
+                </div>`;
+            }).join('');
+            grid.querySelectorAll('.niche-preset-card').forEach(card => {
+                card.addEventListener('click', () => selectNichePreset(card, card.dataset.name || ''));
+            });
+        }
+
+        function selectNichePreset(el, name) {
+            const p = nichePresets[name];
+            if (!p) return;
+            document.getElementById('nicheInput').value = name;
+            document.getElementById('nicheImageStyle').value = p.image_style || '';
+            document.getElementById('nicheVideoStyle').value = p.video_style || '';
+            document.querySelectorAll('.niche-preset-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            toast(`Loaded "${name}" preset — styles auto-configured`, 'info');
+        }
+
+        async function nicheGenerateTitles() {
+            const niche = document.getElementById('nicheInput').value.trim();
+            if (!niche) return toast('Enter a niche first', 'error');
+            const count = parseInt(document.getElementById('nicheTitleCount').value) || 15;
+            const subTopic = document.getElementById('nicheSubTopic').value.trim();
+
+            document.getElementById('spinner').classList.add('show');
+            document.getElementById('spinnerSub').textContent = 'Generating viral titles with Gemini…';
+            document.getElementById('btnNicheTitles').disabled = true;
+
+            try {
+                const d = await api('/api/niche/generate-titles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ niche, sub_topic: subTopic, num_titles: count }),
+                });
+                if (d.success) {
+                    nicheTitles = d.titles;
+                    nicheShowTitles(d);
+                    toast(`Generated ${d.titles.length} viral titles!`, 'success');
+                } else {
+                    toast(d.message || 'Title generation failed', 'error');
+                }
+            } catch (e) {
+                toast('Error: ' + e.message, 'error');
+            }
+            document.getElementById('spinner').classList.remove('show');
+            document.getElementById('spinnerSub').textContent = 'This may take a moment';
+            document.getElementById('btnNicheTitles').disabled = false;
+        }
+
+        function nicheTitleCardClick(card, idx) {
+            const cb = card.querySelector('.niche-title-check');
+            cb.checked = !cb.checked;
+            card.classList.toggle('is-selected', cb.checked);
+            nicheUpdateSummary();
+        }
+        function nicheShowTitles(data) {
+            document.getElementById('nicheStep1').style.display = 'none';
+            document.getElementById('nicheStep2').style.display = 'block';
+            setNicheStepActive(2);
+
+            document.getElementById('nicheAnalysis').innerHTML = `
+                <div class="niche-analysis-row"><i class="fas fa-crosshairs"></i><div><b>Niche:</b> ${esc(data.niche)}</div></div>
+                <div class="niche-analysis-row"><i class="fas fa-users"></i><div><b>Audience:</b> ${esc(data.audience_profile)}</div></div>
+                <div class="niche-analysis-row"><i class="fas fa-lightbulb"></i><div>${esc(data.niche_analysis)}</div></div>
+            `;
+            const countBadge = document.getElementById('nicheTitleCount2');
+            if(countBadge) countBadge.textContent = data.titles.length + ' titles';
+
+            const grid = document.getElementById('nicheTitleGrid');
+            grid.innerHTML = data.titles.map((t, i) => `
+                <div class="col-lg-6 col-xl-4">
+                    <div class="niche-title-card is-selected" data-index="${i}" onclick="nicheTitleCardClick(this, ${i})">
+                        <div class="niche-title-check-wrap">
+                            <input type="checkbox" class="form-check-input niche-title-check" checked data-index="${i}" onchange="event.stopPropagation();nicheUpdateSummary();this.closest('.niche-title-card').classList.toggle('is-selected',this.checked);" style="cursor:pointer;">
+                        </div>
+                        <div class="niche-title-text">${esc(t.title)}</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+                            <span class="badge-hook">${esc(t.hook_angle)}</span>
+                            <span class="badge-emotion">${esc(t.target_emotion)}</span>
+                        </div>
+                        <div class="niche-title-brief">${esc(t.content_brief)}</div>
+                        <div class="niche-title-why"><i class="fas fa-check-circle me-1 text-green" style="font-size:10px;"></i>${esc(t.why_it_works)}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            if (data.content_strategy_tips && data.content_strategy_tips.length) {
+                const tipsEl = document.getElementById('nicheStrategyTips');
+                tipsEl.style.display = 'block';
+                tipsEl.innerHTML = `<div class="card-dark"><div class="card-title"><i class="fas fa-chess"></i> Content Strategy Tips</div>${data.content_strategy_tips.map(t => `<div class="strategy-tip"><i class="fas fa-check"></i><span>${esc(t)}</span></div>`).join('')}</div>`;
+            } else {
+                const tipsEl = document.getElementById('nicheStrategyTips');
+                tipsEl.style.display = 'none';
+                tipsEl.innerHTML = '';
+            }
+            nicheUpdateSummary();
+        }
+
+        function nicheToggleAll(checked) {
+            document.querySelectorAll('.niche-title-check').forEach(cb => cb.checked = checked);
+            nicheUpdateSummary();
+        }
+
+        function nicheBackToStep1() {
+            if (nichePollTimer) {
+                clearInterval(nichePollTimer);
+                nichePollTimer = null;
+            }
+            document.getElementById('nicheStep2').style.display = 'none';
+            document.getElementById('nicheStep3').style.display = 'none';
+            document.getElementById('nicheStep1').style.display = 'block';
+            setNicheStepActive(1);
+        }
+
+        function nicheUpdateSummary() {
+            const selected = document.querySelectorAll('.niche-title-check:checked').length;
+            const total = document.querySelectorAll('.niche-title-check').length;
+            document.getElementById('nichePipelineSummary').innerHTML = `
+                <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-video text-accent"></i><span><b style="color:var(--text);">${selected}</b> <span style="color:var(--muted);">/ ${total} titles selected</span></span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-clock text-accent"></i><span style="color:var(--muted2);">Est. ~${Math.ceil(selected * 0.7)} min</span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-folder text-accent"></i><span style="color:var(--muted2);">${selected} complete video packages</span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-file-alt text-accent"></i><span style="color:var(--muted2);">script · image prompts · video prompts · SEO</span></div>
+            `;
+        }
+
+        async function nicheLaunchPipeline() {
+            const selected = [];
+            document.querySelectorAll('.niche-title-check:checked').forEach(cb => {
+                const idx = parseInt(cb.dataset.index);
+                if (nicheTitles[idx]) selected.push(nicheTitles[idx]);
+            });
+            if (!selected.length) return toast('Select at least one title', 'error');
+
+            const niche = document.getElementById('nicheInput').value.trim();
+            const items = selected.map(t => ({
+                title: t.title,
+                description: t.content_brief + (niche ? ' | Niche: ' + niche : ''),
+                folder: t.title.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim().substring(0, 80),
+                transcript: '',
+            }));
+
+            const options = {
+                include_dialogue: document.getElementById('nicheChkDialogue').checked,
+                gen_image_prompts: document.getElementById('nicheChkImages').checked,
+                gen_video_prompts: document.getElementById('nicheChkVideos').checked,
+                gen_i2v_prompts: document.getElementById('nicheChkI2V').checked,
+                num_image_prompts: parseInt(document.getElementById('nicheNumImages').value) || 0,
+                num_video_prompts: parseInt(document.getElementById('nicheNumVideos').value) || 0,
+                num_i2v_prompts: parseInt(document.getElementById('nicheNumI2V').value) || 0,
+                image_style: document.getElementById('nicheImageStyle').value.trim(),
+                video_style: document.getElementById('nicheVideoStyle').value.trim(),
+            };
+
+            document.getElementById('btnNichePipeline').disabled = true;
+            try {
+                const d = await api('/api/niche/launch-pipeline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ niche, items, options }),
+                });
+                if (d.success) {
+                    nichePipelineJobId = d.job_id;
+                    toast(`Pipeline started for ${d.total} videos!`, 'success');
+                    nicheShowProgress(d.job_id);
+                } else {
+                    toast(d.message, 'error');
+                }
+            } catch (e) {
+                toast('Error: ' + e.message, 'error');
+            }
+            document.getElementById('btnNichePipeline').disabled = false;
+        }
+
+        function setNicheStepActive(n) {
+            [1,2,3].forEach(i => {
+                const el = document.getElementById('nicheStep'+i+'Ind');
+                if(!el) return;
+                el.classList.remove('active','done');
+                if(i < n) el.classList.add('done');
+                else if(i === n) el.classList.add('active');
+            });
+        }
+        function nicheShowProgress(jid) {
+            document.getElementById('nicheStep2').style.display = 'none';
+            document.getElementById('nicheStep3').style.display = 'block';
+            setNicheStepActive(3);
+            document.getElementById('nicheJobId').textContent = '#' + jid;
+            document.getElementById('nicheCompletedActions').style.display = 'none';
+            document.getElementById('btnNichePause').style.display = '';
+            document.getElementById('btnNicheResume').style.display = 'none';
+            nichePollPipeline(jid);
+        }
+
+        function nichePollPipeline(jid) {
+            if (nichePollTimer) clearInterval(nichePollTimer);
+            nichePollTimer = setInterval(async () => {
+                try {
+                    const d = await api(`/api/bulk/status/${jid}`);
+                    if (!d.success) return;
+                    const j = d.job, pct = Math.round(j.progress);
+                    document.getElementById('nicheProgressBar').style.width = pct + '%';
+                    document.getElementById('nicheProgressBar').textContent = pct + '%';
+                    document.getElementById('nicheDoneCount').textContent = j.completed_count;
+                    document.getElementById('nicheFailCount').textContent = j.failed_count;
+                    document.getElementById('nicheTotalCount').textContent = j.total_count;
+                    const sm = { running: 'Running...', paused: 'Paused', cancelled: 'Cancelled', completed: 'Completed!' };
+                    document.getElementById('nicheStatusLabel').textContent = sm[j.status] || j.status;
+                    if (j.status === 'paused') {
+                        document.getElementById('btnNichePause').style.display = 'none';
+                        document.getElementById('btnNicheResume').style.display = '';
+                    } else {
+                        document.getElementById('btnNichePause').style.display = '';
+                        document.getElementById('btnNicheResume').style.display = 'none';
+                    }
+                    const im = { queued: 'fa-clock', processing: 'fa-spinner fa-spin', completed: 'fa-check-circle', failed: 'fa-times-circle' };
+                    let h = '';
+                    j.items.forEach((it, i) => {
+                        const ic = im[it.status] || 'fa-circle';
+                        const er = it.error ? ` — <span style="color:var(--danger);font-size:12px;">${esc(it.error).substring(0, 60)}</span>` : '';
+                        const sc = it.result ? ` <span class="badge-accent">${it.result.scene_count} scenes</span>` : '';
+                        h += `<div class="bulk-item-row ${it.status}"><span class="status-icon"><i class="fas ${ic}"></i></span><span style="color:var(--text-muted);width:30px;">${i + 1}.</span><span class="item-title">${esc(it.title)}</span>${sc}${er}</div>`;
+                    });
+                    document.getElementById('nicheItemsList').innerHTML = h;
+                    if (j.status === 'completed' || j.status === 'cancelled') {
+                        clearInterval(nichePollTimer);
+                        nichePollTimer = null;
+                        document.getElementById('nicheCompletedActions').style.display = 'flex';
+                        if (j.status === 'completed') {
+                            document.getElementById('nicheProgressBar').style.width = '100%';
+                            document.getElementById('nicheProgressBar').textContent = '100%';
+                        }
+                        toast(j.status === 'completed' ? `Pipeline complete! ${j.completed_count}/${j.total_count} succeeded.` : 'Pipeline cancelled.', j.status === 'completed' ? 'success' : 'info');
+                    }
+                } catch (e) { console.error('Poll err:', e); }
+            }, 2000);
+        }
+
+        async function nichePausePipeline() { if (!nichePipelineJobId) return; const d = await api(`/api/bulk/pause/${nichePipelineJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
+        async function nicheResumePipeline() { if (!nichePipelineJobId) return; const d = await api(`/api/bulk/resume/${nichePipelineJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
+        async function nicheCancelPipeline() { if (!nichePipelineJobId || !confirm('Cancel pipeline?')) return; const d = await api(`/api/bulk/cancel/${nichePipelineJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
+        function nicheExportZip() { if (nichePipelineJobId) window.location.href = `/api/bulk/export/${nichePipelineJobId}`; }
+        async function nicheRetryFailed() {
+            if (!nichePipelineJobId) return;
+            const d = await api(`/api/bulk/retry/${nichePipelineJobId}`, { method: 'POST' });
+            if (d.success) { nichePipelineJobId = d.job_id; toast(d.message, 'success'); nicheShowProgress(d.job_id); }
+            else toast(d.message, 'error');
+        }
+        function nicheNewBatch() {
+            nichePipelineJobId = null;
+            nicheTitles = [];
+            document.getElementById('nicheStep3').style.display = 'none';
+            document.getElementById('nicheStep2').style.display = 'none';
+            document.getElementById('nicheStep1').style.display = 'block';
+            document.getElementById('nicheTitleGrid').innerHTML = '';
+            document.getElementById('nicheItemsList').innerHTML = '';
+            document.getElementById('nicheAnalysis').innerHTML = '';
+            document.getElementById('nichePipelineSummary').innerHTML = '';
+            document.getElementById('nicheProgressBar').style.width = '0%';
+            document.getElementById('nicheProgressBar').textContent = '';
+            document.getElementById('nicheDoneCount').textContent = '0';
+            document.getElementById('nicheFailCount').textContent = '0';
+            document.getElementById('nicheTotalCount').textContent = '0';
+            document.getElementById('nicheStatusLabel').textContent = 'Running...';
+            document.getElementById('nicheCompletedActions').style.display = 'none';
+            document.getElementById('btnNichePause').style.display = '';
+            document.getElementById('btnNicheResume').style.display = 'none';
+            const tipsEl = document.getElementById('nicheStrategyTips');
+            tipsEl.style.display = 'none';
+            tipsEl.innerHTML = '';
+            if (nichePollTimer) {
+                clearInterval(nichePollTimer);
+                nichePollTimer = null;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // LOGS PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        async function loadLogs(mode) {
+            const url = mode === 'errors' ? '/api/logs/errors' : '/api/logs?lines=500';
+            const el = document.getElementById('logsContent');
+            el.textContent = 'Loading...';
+            try {
+                const d = await api(url);
+                if (d.success) {
+                    // Colorize log lines
+                    const lines = d.content.split('\n');
+                    el.innerHTML = lines.map(l => {
+                        if (l.includes('| ERROR') || l.includes('FAILED')) return `<span style="color:var(--danger);">${esc(l)}</span>`;
+                        if (l.includes('| WARNING') || l.includes('QUOTA')) return `<span style="color:#e67e22;">${esc(l)}</span>`;
+                        if (l.includes('SUCCESS') || l.includes('DONE')) return `<span style="color:var(--success);">${esc(l)}</span>`;
+                        if (l.includes('[BULK') || l.includes('[GEN]') || l.includes('[TITLES]')) return `<span style="color:var(--accent);">${esc(l)}</span>`;
+                        return esc(l);
+                    }).join('\n');
+                    const meta = [];
+                    if (d.total_lines) meta.push(`Total: ${d.total_lines} lines`);
+                    if (d.total_errors) meta.push(`Errors: ${d.total_errors}`);
+                    if (d.showing) meta.push(`Showing: ${d.showing}`);
+                    document.getElementById('logsMeta').textContent = meta.join(' | ');
+                    // Auto-scroll to bottom
+                    el.scrollTop = el.scrollHeight;
+                } else {
+                    el.textContent = d.message || 'Failed to load logs';
+                }
+            } catch (e) {
+                el.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Mobile Menu
+        // ═══════════════════════════════════════════════════════════════════
+        function toggleMobileMenu() {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            if (!sb || !ov) return;
+            const isOpen = sb.classList.contains('mobile-open');
+            sb.classList.toggle('mobile-open', !isOpen);
+            ov.style.display = isOpen ? 'none' : 'block';
+        }
+        function closeMobileMenu() {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            if (!sb || !ov) return;
+            sb.classList.remove('mobile-open');
+            ov.style.display = 'none';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ADOBE STOCK PIPELINE
+        // ═══════════════════════════════════════════════════════════════════
+        let adobeSelectedNiche  = null;
+        let adobeNicheDataCache = {};
+        let adobeJobId          = null;
+        let adobePollTimer      = null;
+        let adobeCurrentStep    = 1;
+
+        // ── Step navigation ──────────────────────────────────────────────
+        function adobeGoToStep(n) {
+            adobeCurrentStep = n;
+            [1, 2, 3].forEach(i => {
+                document.getElementById(`adobeStep${i}`).style.display     = (i === n) ? '' : 'none';
+                const ind = document.getElementById(`adobeStep${i}Ind`);
+                ind.classList.toggle('active',    i === n);
+                ind.classList.toggle('completed', i < n);
+            });
+        }
+
+        function adobeBackToStep1() {
+            if (adobePollTimer) { clearInterval(adobePollTimer); adobePollTimer = null; }
+            adobeGoToStep(1);
+        }
+
+        // ── Load niches from backend ──────────────────────────────────────
+        async function loadAdobeNiches() {
+            if (Object.keys(adobeNicheDataCache).length > 0) return; // already loaded
+            const grid = document.getElementById('adobeNicheGrid');
+            try {
+                const d = await api('/api/adobe-stock/niches');
+                if (!d.success) throw new Error(d.message);
+                adobeNicheDataCache = d.niches;
+                grid.innerHTML = '';
+                const ctrColors = { 'Very High': '#3dd68c', 'High': '#f0a444', 'Medium': '#6c8ebf' };
+                Object.entries(d.niches).forEach(([name, info]) => {
+                    const ctrColor = ctrColors[info.ctr_potential] || '#f0a444';
+                    const card = document.createElement('div');
+                    card.className = 'niche-preset-card';
+                    card.style.cssText = 'cursor:pointer;padding:14px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);transition:all .2s;';
+                    card.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                            <div style="width:36px;height:36px;border-radius:9px;background:rgba(240,164,68,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i class="fas ${info.icon || 'fa-images'}" style="color:var(--accent);font-size:16px;"></i>
+                            </div>
+                            <div style="font-weight:700;font-size:13px;color:var(--text);line-height:1.3;">${esc(name)}</div>
+                        </div>
+                        <div style="font-size:11.5px;color:var(--muted2);margin-bottom:10px;line-height:1.5;">${esc(info.description.substring(0,90))}…</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <span style="font-size:10px;padding:2px 8px;border-radius:20px;background:${ctrColor}22;color:${ctrColor};font-weight:600;">CTR: ${esc(info.ctr_potential)}</span>
+                            <span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--muted2);">Competition: ${esc((info.competition || '').split(' ')[0])}</span>
+                        </div>`;
+                    card.addEventListener('click', () => adobeSelectNiche(name));
+                    card.addEventListener('mouseenter', () => { card.style.borderColor = 'var(--accent)'; card.style.background = 'rgba(240,164,68,.06)'; });
+                    card.addEventListener('mouseleave', () => { card.style.borderColor = 'var(--border)'; card.style.background = 'var(--card)'; });
+                    grid.appendChild(card);
+                });
+            } catch(e) {
+                grid.innerHTML = `<div style="color:var(--red);padding:16px;">Failed to load niches: ${esc(e.message)}</div>`;
+            }
+        }
+
+        // ── Niche selection ───────────────────────────────────────────────
+        function adobeSelectNiche(name) {
+            adobeSelectedNiche = name;
+            const info = adobeNicheDataCache[name] || {};
+            // Populate Step 2 info card
+            document.getElementById('adobeSelectedNicheTitle').innerHTML =
+                `<i class="fas ${info.icon || 'fa-images'} text-accent"></i> ${esc(name)}`;
+            const kw = (info.primary_keywords || []).slice(0, 6).map(k => `<span class="badge-accent" style="font-size:11px;">${esc(k)}</span>`).join(' ');
+            document.getElementById('adobeNicheDetails').innerHTML = `
+                <div style="margin-bottom:8px;">${esc(info.description || '')}</div>
+                <div style="margin-bottom:6px;"><b style="color:var(--text);">Key Buyers:</b> ${esc(info.key_buyers || '')}</div>
+                <div style="margin-bottom:8px;"><b style="color:var(--text);">Photography Style:</b> ${esc(info.photography_style || '')}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">${kw}</div>`;
+
+            // Show strategy tips
+            const tipsEl = document.getElementById('adobeNicheTips');
+            if (info.sub_niches && info.sub_niches.length) {
+                tipsEl.style.display = '';
+                tipsEl.innerHTML = `<div style="margin-top:12px;padding:12px;background:rgba(240,164,68,.07);border-radius:10px;border-left:3px solid var(--accent);">
+                    <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:6px;"><i class="fas fa-lightbulb me-1"></i> Sub-niches available</div>
+                    <div style="font-size:12px;color:var(--muted2);">${info.sub_niches.map(s => `<span style="margin-right:8px;">• ${esc(s)}</span>`).join('')}</div>
+                </div>`;
+            } else {
+                tipsEl.style.display = 'none';
+            }
+
+            // Pre-fill sub-niche input if blank
+            const subInput = document.getElementById('adobeSubNicheInput');
+            if (!subInput.value.trim()) subInput.value = '';
+
+            adobeUpdateEstimate();
+            adobeGoToStep(2);
+        }
+
+        function adobeSelectCustomNiche() {
+            const name = document.getElementById('adobeCustomNiche').value.trim();
+            if (!name) { toast('Please enter a niche name', 'error'); return; }
+            const sub = document.getElementById('adobeCustomSubNiche').value.trim();
+            // Create minimal entry if not in cache
+            if (!adobeNicheDataCache[name]) {
+                adobeNicheDataCache[name] = {
+                    description: `Custom niche: ${name}`,
+                    key_buyers: 'Commercial buyers',
+                    photography_style: 'Professional commercial photography, authentic, photorealistic',
+                    primary_keywords: [name.toLowerCase()],
+                    sub_niches: sub ? [sub] : [],
+                    icon: 'fa-images',
+                    ctr_potential: 'High',
+                    competition: 'Medium',
+                };
+            }
+            if (sub) document.getElementById('adobeSubNicheInput').value = sub;
+            adobeSelectNiche(name);
+        }
+
+        // ── Estimate updater ──────────────────────────────────────────────
+        function adobeUpdateEstimate() {
+            const c = parseInt(document.getElementById('adobeTotalConcepts').value) || 10;
+            const v = parseInt(document.getElementById('adobeVariations').value)    || 5;
+            const total = c * v;
+            document.getElementById('adobeTotalEstimate').textContent = total.toLocaleString();
+
+            const apiCalls = Math.ceil(c / 5);
+            const summaryEl = document.getElementById('adobeLaunchSummary');
+            if (summaryEl) {
+                summaryEl.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;">
+                        <span style="color:var(--muted2);">Niche</span>
+                        <span style="font-weight:600;color:var(--text);">${esc(adobeSelectedNiche || '—')}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;">
+                        <span style="color:var(--muted2);">Concepts</span>
+                        <span style="font-weight:600;color:var(--text);">${c}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;">
+                        <span style="color:var(--muted2);">Variations each</span>
+                        <span style="font-weight:600;color:var(--text);">${v}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(240,164,68,.12);border-radius:8px;border:1px solid rgba(240,164,68,.3);">
+                        <span style="color:var(--accent);font-weight:700;">Total images</span>
+                        <span style="font-weight:800;color:var(--accent);font-size:16px;">${total.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;">
+                        <span style="color:var(--muted2);">API calls needed</span>
+                        <span style="font-weight:600;color:var(--text);">${apiCalls}</span>
+                    </div>`;
+            }
+        }
+
+        // ── Launch pipeline ───────────────────────────────────────────────
+        async function adobeLaunchPipeline() {
+            if (!adobeSelectedNiche) { toast('Select a niche first', 'error'); return; }
+            const concepts     = parseInt(document.getElementById('adobeTotalConcepts').value) || 10;
+            const variations   = parseInt(document.getElementById('adobeVariations').value)    || 5;
+            const subNiche     = document.getElementById('adobeSubNicheInput').value.trim();
+            const customInstr  = document.getElementById('adobeCustomInstructions').value.trim();
+
+            const btn = document.getElementById('btnAdobeLaunch');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting…';
+
+            try {
+                const d = await api('/api/adobe-stock/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        niche:               adobeSelectedNiche,
+                        sub_niche:           subNiche,
+                        total_concepts:      concepts,
+                        variations:          variations,
+                        custom_instructions: customInstr,
+                    }),
+                });
+                if (!d.success) throw new Error(d.message || 'Failed to start job');
+
+                adobeJobId = d.job_id;
+                // Init step 3 UI
+                document.getElementById('adobeJobId').textContent      = `#${adobeJobId}`;
+                document.getElementById('adobeTotalImagesDisplay').textContent = d.total_images.toLocaleString();
+                document.getElementById('adobeProgressBar').style.width = '0%';
+                document.getElementById('adobeDoneImages').textContent  = '0';
+                document.getElementById('adobeDoneBatches').textContent  = '0';
+                document.getElementById('adobeFailedBatches').textContent = '0';
+                document.getElementById('adobeStatusLabel').textContent = 'Running…';
+                document.getElementById('adobeStatusLabel').className   = 'text-accent';
+                document.getElementById('adobeBatchLog').innerHTML      = '';
+                document.getElementById('adobeCompletedActions').style.display = 'none';
+                document.getElementById('btnAdobePause').style.display  = '';
+                document.getElementById('btnAdobeResume').style.display = 'none';
+                const pathEl = document.getElementById('adobeOutputPath');
+                pathEl.style.display = '';
+                document.getElementById('adobeOutputPathText').textContent = d.output_dir || '';
+
+                adobeGoToStep(3);
+                toast('Adobe Stock pipeline started!', 'success');
+
+                // Begin polling
+                if (adobePollTimer) clearInterval(adobePollTimer);
+                adobePollTimer = setInterval(adobePollStatus, 2500);
+
+            } catch(e) {
+                toast('Error: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> Generate All Prompts';
+            }
+        }
+
+        // ── Poll job status ───────────────────────────────────────────────
+        async function adobePollStatus() {
+            if (!adobeJobId) return;
+            try {
+                const d = await api(`/api/adobe-stock/status/${adobeJobId}`);
+                if (!d.success) return;
+                adobeUpdateJobUI(d.job);
+                if (['completed','cancelled','failed'].includes(d.job.status)) {
+                    clearInterval(adobePollTimer);
+                    adobePollTimer = null;
+                }
+            } catch(e) { /* ignore transient errors */ }
+        }
+
+        function adobeUpdateJobUI(job) {
+            // Progress bar
+            const pct = Math.round(job.progress || 0);
+            const bar = document.getElementById('adobeProgressBar');
+            bar.style.width    = pct + '%';
+            bar.style.minWidth = pct > 0 ? '32px' : '0';
+
+            // Stats
+            document.getElementById('adobeDoneImages').textContent   = (job.completed_images || 0).toLocaleString();
+            document.getElementById('adobeDoneBatches').textContent  = job.completed_batches || 0;
+            document.getElementById('adobeFailedBatches').textContent = job.failed_batches || 0;
+
+            // Status label
+            const label = document.getElementById('adobeStatusLabel');
+            const statusMap = {
+                running:   { text: `Running… ${pct}%`,          cls: 'text-accent' },
+                paused:    { text: 'Paused',                      cls: 'text-accent' },
+                completed: { text: `Completed — ${(job.completed_images||0)} images`, cls: 'text-green' },
+                cancelled: { text: 'Cancelled',                   cls: 'text-red' },
+                failed:    { text: 'Failed',                      cls: 'text-red' },
+            };
+            const s = statusMap[job.status] || { text: job.status, cls: '' };
+            label.textContent = s.text;
+            label.className   = s.cls;
+
+            // Pause/resume buttons
+            document.getElementById('btnAdobePause').style.display  = job.status === 'running'  ? '' : 'none';
+            document.getElementById('btnAdobeResume').style.display = job.status === 'paused'   ? '' : 'none';
+
+            // Batch log
+            if (job.batch_log && job.batch_log.length) {
+                const logEl = document.getElementById('adobeBatchLog');
+                logEl.innerHTML = job.batch_log.map(b => {
+                    const isOk  = b.status === 'completed';
+                    const isFail = b.status === 'failed';
+                    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:6px;border-radius:8px;background:${isOk ? 'rgba(61,214,140,.07)' : isFail ? 'rgba(255,92,92,.07)' : 'rgba(255,255,255,.04)'};">
+                        <i class="fas ${isOk ? 'fa-check-circle' : isFail ? 'fa-times-circle' : 'fa-spinner fa-spin'}" style="color:${isOk ? 'var(--green)' : isFail ? 'var(--red)' : 'var(--accent)'};width:16px;"></i>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:12px;font-weight:600;color:var(--text);">Batch ${b.batch} — ${esc(b.range || '')}</div>
+                            ${isOk  ? `<div style="font-size:11px;color:var(--green);">${b.images || 0} prompts generated</div>` : ''}
+                            ${isFail ? `<div style="font-size:11px;color:var(--red);">${esc(b.error || 'Unknown error')}</div>` : ''}
+                        </div>
+                        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${isOk ? 'rgba(61,214,140,.15)' : isFail ? 'rgba(255,92,92,.15)' : 'rgba(255,255,255,.08)'};color:${isOk ? 'var(--green)' : isFail ? 'var(--red)' : 'var(--muted2)'};">${isOk ? 'Done' : isFail ? 'Failed' : 'Processing'}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // Completed state
+            if (['completed','cancelled'].includes(job.status)) {
+                document.getElementById('adobeCompletedActions').style.display = 'flex';
+            }
+        }
+
+        // ── Pause / Resume / Cancel ───────────────────────────────────────
+        async function adobePause() {
+            if (!adobeJobId) return;
+            const d = await api(`/api/adobe-stock/pause/${adobeJobId}`, { method: 'POST' });
+            if (d.success) { toast('Pipeline paused', 'info'); }
+            else toast(d.message, 'error');
+        }
+
+        async function adobeResume() {
+            if (!adobeJobId) return;
+            const d = await api(`/api/adobe-stock/resume/${adobeJobId}`, { method: 'POST' });
+            if (d.success) {
+                toast('Pipeline resumed', 'success');
+                if (!adobePollTimer) adobePollTimer = setInterval(adobePollStatus, 2500);
+            } else toast(d.message, 'error');
+        }
+
+        async function adobeCancel() {
+            if (!adobeJobId) return;
+            if (!confirm('Cancel this generation job?')) return;
+            const d = await api(`/api/adobe-stock/cancel/${adobeJobId}`, { method: 'POST' });
+            if (d.success) toast('Pipeline cancelled', 'info');
+            else toast(d.message, 'error');
+        }
+
+        function adobeNewBatch() {
+            if (adobePollTimer) { clearInterval(adobePollTimer); adobePollTimer = null; }
+            adobeJobId = null;
+            document.getElementById('adobeStep3').style.display = 'none';
+            document.getElementById('adobeStep2').style.display = 'none';
+            document.getElementById('adobeStep1').style.display = '';
+            document.getElementById('adobeProgressBar').style.width = '0%';
+            document.getElementById('adobeBatchLog').innerHTML = '';
+            document.getElementById('adobeCompletedActions').style.display = 'none';
+            document.getElementById('btnAdobePause').style.display  = '';
+            document.getElementById('btnAdobeResume').style.display = 'none';
+            // Reset step indicators
+            [1,2,3].forEach(i => {
+                const ind = document.getElementById(`adobeStep${i}Ind`);
+                ind.classList.remove('active','completed');
+            });
+            document.getElementById('adobeStep1Ind').classList.add('active');
+            adobeCurrentStep = 1;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Init
+        // ═══════════════════════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshTemplateDropdowns();
+        });
+    </script>
+</body>
+
+</html>
