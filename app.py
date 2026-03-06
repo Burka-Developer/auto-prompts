@@ -23,7 +23,9 @@ from typing import Optional
 from datetime import datetime
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request, send_file, Response
+from flask import Flask, jsonify, render_template, request, send_file, Response, stream_with_context
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
 from google import genai
 from pydantic import BaseModel, Field
 
@@ -53,6 +55,8 @@ RETRY_BACKOFF_MULTIPLIER = 2.0  # exponential backoff: 8s, 16s, 32s, 64s...
 RETRY_MAX_DELAY = 120  # cap at 2 minutes
 BULK_ITEM_DELAY = 5  # seconds between bulk items (base)
 BULK_ITEM_DELAY_AFTER_429 = 30  # seconds after a 429 error
+BULK_PARALLEL_WORKERS = 3        # concurrent video-generation threads
+ADOBE_PARALLEL_BATCHES = 2       # concurrent Adobe Stock API-call threads
 LOG_DIR = BASE_DIR / "logs"
 
 def _ensure_log_dir():
@@ -911,6 +915,7 @@ def _call_gemini(prompt: str) -> GenerationResult:
                     _count_available_keys(), len(API_KEYS),
                 )
 
+                t_call = time.time()
                 client = genai.Client(api_key=api_key)
                 resp = client.models.generate_content(
                     model=GEMINI_MODEL,
@@ -923,17 +928,18 @@ def _call_gemini(prompt: str) -> GenerationResult:
                         "max_output_tokens": 65536,
                     },
                 )
+                api_latency = round(time.time() - t_call, 1)
 
                 raw_text = resp.text or ""
-                log.debug("[GEN] Raw response: %d chars", len(raw_text))
+                log.debug("[GEN] Raw response: %d chars in %.1fs", len(raw_text), api_latency)
 
                 if not raw_text.strip():
                     raise ValueError("Gemini returned empty response")
 
                 result = _validate_with_fallback(raw_text, attempt_label)
                 log.info(
-                    "[GEN] SUCCESS — %d scenes | key=%s | cycle %d",
-                    len(result.scenes), _mask_key(api_key), cycle + 1,
+                    "[GEN] SUCCESS — %d scenes | key=%s | cycle %d | latency=%.1fs",
+                    len(result.scenes), _mask_key(api_key), cycle + 1, api_latency,
                 )
                 return result
 
@@ -1111,6 +1117,24 @@ def _write_outputs(
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/favicon.ico")
+def favicon():
+    """Suppress the 404 favicon log noise."""
+    return "", 204
+
+
+@app.route("/api/init", methods=["GET"])
+def api_init():
+    """Combined init endpoint — returns templates, niche presets, and Adobe Stock niches
+    in a single HTTP round-trip, eliminating three sequential page-load calls."""
+    return jsonify({
+        "success": True,
+        "templates": _load_templates(),
+        "niche_presets": NICHE_PRESETS,
+        "adobe_stock_niches": ADOBE_STOCK_NICHES,
+    })
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1463,8 +1487,111 @@ def _parse_txt_file(file_bytes: bytes) -> list[dict]:
     return result
 
 
+def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, options: dict) -> None:
+    """Process one bulk item — runs inside a ThreadPoolExecutor worker."""
+    # Respect pause / cancel before starting
+    while True:
+        with bulk_lock:
+            job = bulk_jobs.get(job_id)
+            if not job or job["status"] == "cancelled":
+                return
+            if job["status"] != "paused":
+                break
+        time.sleep(0.5)
+
+    title = item.get("title", "")
+    folder = item.get("folder", _sanitize(title))
+    description = item.get("description", "")
+    transcript = item.get("transcript", "")
+    prompt_template_name = item.get("prompt_template", "") or None
+    or_words = item.get("or_words", "")
+
+    if or_words:
+        description = f"{description}\n\nAdditional keywords/context: {or_words}".strip()
+
+    with bulk_lock:
+        item["status"] = "processing"
+
+    item_start_time = time.time()
+
+    try:
+        log.info("[BULK %s] ── Item %d/%d START ── '%s'", job_id, idx + 1, total, title)
+
+        template_instructions = _extract_template_instructions(prompt_template_name)
+        wc = _estimate_words(transcript)
+
+        prompt = _build_prompt(
+            title=title,
+            description=description,
+            transcript=transcript,
+            word_count=wc,
+            template_instructions=template_instructions,
+            include_dialogue=options.get("include_dialogue", False),
+            gen_image_prompts=options.get("gen_image_prompts", True),
+            gen_video_prompts=options.get("gen_video_prompts", True),
+            gen_i2v_prompts=options.get("gen_i2v_prompts", False),
+            num_image_prompts=int(options.get("num_image_prompts") or 0),
+            num_video_prompts=int(options.get("num_video_prompts") or 0),
+            num_i2v_prompts=int(options.get("num_i2v_prompts") or 0),
+            image_style=(options.get("image_style") or "").strip(),
+            video_style=(options.get("video_style") or "").strip(),
+        )
+
+        log.debug("[BULK %s] Prompt length: %d chars for '%s'", job_id, len(prompt), title)
+
+        result = _call_gemini(prompt)
+
+        output = _write_outputs(
+            result=result,
+            folder_name=folder,
+            gen_image_prompts=options.get("gen_image_prompts", True),
+            gen_video_prompts=options.get("gen_video_prompts", True),
+            gen_i2v_prompts=options.get("gen_i2v_prompts", False),
+            include_dialogue=options.get("include_dialogue", False),
+        )
+
+        elapsed = time.time() - item_start_time
+        with bulk_lock:
+            item["status"] = "completed"
+            item["result"] = {
+                "scene_count": output["scene_count"],
+                "title": output["title"],
+                "project_path": output["project_path"],
+            }
+            job = bulk_jobs.get(job_id)
+            if job:
+                job["completed_count"] = job.get("completed_count", 0) + 1
+                job["progress"] = (job["completed_count"] + job.get("failed_count", 0)) / total * 100
+
+        log.info(
+            "[BULK %s] ── Item %d/%d DONE ── '%s' | %d scenes | %.1fs",
+            job_id, idx + 1, total, title, output["scene_count"], elapsed,
+        )
+
+    except Exception as exc:
+        elapsed = time.time() - item_start_time
+        is_quota = _is_quota_error(exc)
+        is_validation = "validation" in str(exc).lower() or "json" in str(exc).lower()
+        error_type = "QUOTA/429" if is_quota else ("VALIDATION" if is_validation else "UNKNOWN")
+        error_msg = str(exc)
+        ui_error = f"{error_type}: {error_msg[:200]}"
+
+        log.error(
+            "[BULK %s] ── Item %d/%d FAILED ── '%s' | type=%s | %.1fs | error=%s",
+            job_id, idx + 1, total, title, error_type, elapsed, error_msg[:500],
+        )
+
+        with bulk_lock:
+            item["status"] = "failed"
+            item["error"] = ui_error
+            job = bulk_jobs.get(job_id)
+            if job:
+                job["failed_count"] = job.get("failed_count", 0) + 1
+                job["progress"] = (job.get("completed_count", 0) + job["failed_count"]) / total * 100
+
+
 def _process_bulk_job(job_id: str):
-    """Background thread to process bulk generation items."""
+    """Orchestrates parallel bulk generation using a thread pool."""
     with bulk_lock:
         job = bulk_jobs.get(job_id)
         if not job:
@@ -1474,131 +1601,40 @@ def _process_bulk_job(job_id: str):
     total = len(items)
     options = job["options"]
 
-    for idx, item in enumerate(items):
-        # Handle pause/cancel with polling (no busy-wait inside lock)
-        #
-        while True:
+    log.info("[BULK %s] Starting parallel processing — %d items | workers=%d", job_id, total, BULK_PARALLEL_WORKERS)
+
+    with ThreadPoolExecutor(max_workers=BULK_PARALLEL_WORKERS) as executor:
+        futures = []
+        for idx, item in enumerate(items):
+            # Stop submitting new tasks if cancelled
             with bulk_lock:
-                if job["status"] == "cancelled":
-                    return
-                if job["status"] != "paused":
+                j = bulk_jobs.get(job_id)
+                if not j or j["status"] == "cancelled":
                     break
-            time.sleep(0.5)
+            future = executor.submit(_process_single_bulk_item, job_id, idx, item, total, options)
+            futures.append(future)
 
-        # Update current item status
-        with bulk_lock:
-            item["status"] = "processing"
-            job["current_index"] = idx
-            job["progress"] = idx / total * 100
-
-        title = item.get("title", "")
-        folder = item.get("folder", _sanitize(title))
-        description = item.get("description", "")
-        transcript = item.get("transcript", "")
-        prompt_template_name = item.get("prompt_template", "") or None
-        or_words = item.get("or_words", "")
-
-        # If or_words provided, append to description
-        if or_words:
-            description = f"{description}\n\nAdditional keywords/context: {or_words}".strip()
-
-        item_start_time = time.time()
-        next_delay = BULK_ITEM_DELAY  # will increase if 429 hit
-
-        try:
-            log.info("[BULK %s] ── Item %d/%d START ── '%s'", job_id, idx + 1, total, title)
-
-            template_instructions = _extract_template_instructions(prompt_template_name)
-            wc = _estimate_words(transcript)
-
-            prompt = _build_prompt(
-                title=title,
-                description=description,
-                transcript=transcript,
-                word_count=wc,
-                template_instructions=template_instructions,
-                include_dialogue=options.get("include_dialogue", False),
-                gen_image_prompts=options.get("gen_image_prompts", True),
-                gen_video_prompts=options.get("gen_video_prompts", True),
-                gen_i2v_prompts=options.get("gen_i2v_prompts", False),
-                num_image_prompts=int(options.get("num_image_prompts") or 0),
-                num_video_prompts=int(options.get("num_video_prompts") or 0),
-                num_i2v_prompts=int(options.get("num_i2v_prompts") or 0),
-                image_style=(options.get("image_style") or "").strip(),
-                video_style=(options.get("video_style") or "").strip(),
-            )
-
-            log.debug("[BULK %s] Prompt length: %d chars for '%s'", job_id, len(prompt), title)
-
-            result = _call_gemini(prompt)
-
-            output = _write_outputs(
-                result=result,
-                folder_name=folder,
-                gen_image_prompts=options.get("gen_image_prompts", True),
-                gen_video_prompts=options.get("gen_video_prompts", True),
-                gen_i2v_prompts=options.get("gen_i2v_prompts", False),
-                include_dialogue=options.get("include_dialogue", False),
-            )
-
-            elapsed = time.time() - item_start_time
-            with bulk_lock:
-                item["status"] = "completed"
-                item["result"] = {
-                    "scene_count": output["scene_count"],
-                    "title": output["title"],
-                    "project_path": output["project_path"],
-                }
-                job["completed_count"] = job.get("completed_count", 0) + 1
-
-            log.info(
-                "[BULK %s] ── Item %d/%d DONE ── '%s' | %d scenes | %.1fs",
-                job_id, idx + 1, total, title, output["scene_count"], elapsed,
-            )
-
-        except Exception as exc:
-            elapsed = time.time() - item_start_time
-            is_quota = _is_quota_error(exc)
-            is_validation = "validation" in str(exc).lower() or "json" in str(exc).lower()
-            error_type = "QUOTA/429" if is_quota else ("VALIDATION" if is_validation else "UNKNOWN")
-
-            error_msg = str(exc)
-            # Truncate for UI display but log full
-            ui_error = f"{error_type}: {error_msg[:200]}"
-
-            log.error(
-                "[BULK %s] ── Item %d/%d FAILED ── '%s' | type=%s | %.1fs | error=%s",
-                job_id, idx + 1, total, title, error_type, elapsed, error_msg[:500],
-            )
-
-            with bulk_lock:
-                item["status"] = "failed"
-                item["error"] = ui_error
-                job["failed_count"] = job.get("failed_count", 0) + 1
-
-            if is_quota:
-                next_delay = BULK_ITEM_DELAY_AFTER_429
-                log.info(
-                    "[BULK %s] 429 hit — increasing inter-item delay to %ds for cooldown",
-                    job_id, next_delay,
-                )
-
-        # Adaptive rate limiting between items
-        if idx < total - 1:
-            log.debug("[BULK %s] Sleeping %ds before next item...", job_id, next_delay)
-            time.sleep(next_delay)
+        # Surface any unexpected worker-level exceptions
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as exc:
+                log.error("[BULK %s] Worker thread raised: %s", job_id, exc)
 
     with bulk_lock:
-        job["status"] = "completed"
-        job["progress"] = 100
-        job["completed_at"] = datetime.now().isoformat()
+        job = bulk_jobs.get(job_id)
+        if job and job["status"] not in ("cancelled",):
+            job["status"] = "completed"
+            job["progress"] = 100
+            job["completed_at"] = datetime.now().isoformat()
 
-    completed = job.get("completed_count", 0)
-    failed = job.get("failed_count", 0)
-    log.info(
-        "[BULK %s] ═══ JOB FINISHED ═══ completed=%d | failed=%d | total=%d",
-        job_id, completed, failed, total,
-    )
+    if job:
+        completed = job.get("completed_count", 0)
+        failed = job.get("failed_count", 0)
+        log.info(
+            "[BULK %s] ═══ JOB FINISHED ═══ completed=%d | failed=%d | total=%d",
+            job_id, completed, failed, total,
+        )
 
 
 @app.route("/api/bulk/upload", methods=["POST"])
@@ -1724,6 +1760,66 @@ def bulk_status(job_id):
             ],
         },
     })
+
+
+@app.route("/api/bulk/events/<job_id>", methods=["GET"])
+def bulk_events(job_id):
+    """Server-Sent Events stream for real-time bulk job progress.
+    Replaces the 2-second polling loop with push-based updates."""
+    def generate():
+        last_hash = ""
+        last_heartbeat = time.time()
+        while True:
+            with bulk_lock:
+                job = bulk_jobs.get(job_id)
+            if not job:
+                yield f"data: {json.dumps({'error': 'Job not found'})}\n\n"
+                return
+            snapshot = {
+                "id": job["id"],
+                "status": job["status"],
+                "total_count": job["total_count"],
+                "completed_count": job.get("completed_count", 0),
+                "failed_count": job.get("failed_count", 0),
+                "current_index": job.get("current_index", 0),
+                "progress": round(job.get("progress", 0), 1),
+                "created_at": job["created_at"],
+                "completed_at": job.get("completed_at"),
+                "items": [
+                    {
+                        "title": it.get("title", ""),
+                        "folder": it.get("folder", ""),
+                        "status": it.get("status", "queued"),
+                        "error": it.get("error"),
+                        "result": it.get("result"),
+                    }
+                    for it in job["items"]
+                ],
+            }
+            payload = json.dumps(snapshot)
+            current_hash = hashlib.md5(payload.encode()).hexdigest()
+            now = time.time()
+            if current_hash != last_hash:
+                last_hash = current_hash
+                last_heartbeat = now
+                yield f"data: {payload}\n\n"
+            elif now - last_heartbeat > 15:
+                # Keep-alive heartbeat so proxies don't close the connection
+                last_heartbeat = now
+                yield ": heartbeat\n\n"
+            if job["status"] in ("completed", "cancelled"):
+                return
+            time.sleep(0.4)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.route("/api/bulk/pause/<job_id>", methods=["POST"])
@@ -2786,6 +2882,62 @@ def adobe_stock_status(job_id):
             "completed_at": job.get("completed_at"),
         },
     })
+
+
+@app.route("/api/adobe-stock/events/<job_id>", methods=["GET"])
+def adobe_stock_events(job_id):
+    """Server-Sent Events stream for real-time Adobe Stock job progress."""
+    def generate():
+        last_hash = ""
+        last_heartbeat = time.time()
+        while True:
+            with adobe_stock_lock:
+                job = adobe_stock_jobs.get(job_id)
+            if not job:
+                yield f"data: {json.dumps({'error': 'Job not found'})}\n\n"
+                return
+            snapshot = {
+                "id": job["id"],
+                "status": job["status"],
+                "niche": job["niche"],
+                "sub_niche": job["sub_niche"],
+                "total_concepts": job["total_concepts"],
+                "variations": job["variations"],
+                "total_images": job["total_images"],
+                "total_batches": job["total_batches"],
+                "completed_batches": job.get("completed_batches", 0),
+                "failed_batches": job.get("failed_batches", 0),
+                "completed_images": job.get("completed_images", 0),
+                "current_batch": job.get("current_batch", 0),
+                "progress": round(job.get("progress", 0), 1),
+                "output_dir": job.get("output_dir", ""),
+                "batch_log": job.get("batch_log", []),
+                "created_at": job["created_at"],
+                "completed_at": job.get("completed_at"),
+            }
+            payload = json.dumps(snapshot)
+            current_hash = hashlib.md5(payload.encode()).hexdigest()
+            now = time.time()
+            if current_hash != last_hash:
+                last_hash = current_hash
+                last_heartbeat = now
+                yield f"data: {payload}\n\n"
+            elif now - last_heartbeat > 15:
+                last_heartbeat = now
+                yield ": heartbeat\n\n"
+            if job["status"] in ("completed", "cancelled"):
+                return
+            time.sleep(0.4)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.route("/api/adobe-stock/pause/<job_id>", methods=["POST"])

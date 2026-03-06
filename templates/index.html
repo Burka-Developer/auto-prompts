@@ -1865,9 +1865,9 @@
                 if (pg === 'prompt-creator') refreshTemplateDropdowns();
                 if (pg === 'folder-creator') refreshTemplateDropdowns();
                 if (pg === 'logs') loadLogs('all');
-                if (pg !== 'niche' && nichePollTimer) {
-                    clearInterval(nichePollTimer);
-                    nichePollTimer = null;
+                if (pg !== 'niche') {
+                    if (nichePollTimer) { clearInterval(nichePollTimer); nichePollTimer = null; }
+                    if (nicheEventSource) { nicheEventSource.close(); nicheEventSource = null; }
                 }
             });
         });
@@ -2340,6 +2340,7 @@
         let bulkItems = [];
         let bulkCurrentJobId = null;
         let bulkPollTimer = null;
+        let bulkEventSource = null;
 
         (function initDropZone() {
             document.addEventListener('DOMContentLoaded', () => {
@@ -2446,36 +2447,51 @@
             bulkPollStatus(jid);
         }
 
+        function _bulkApplyUpdate(j) {
+            const pct = Math.round(j.progress);
+            document.getElementById('bulkProgressBar').style.width = pct + '%';
+            document.getElementById('bulkProgressBar').textContent = pct + '%';
+            document.getElementById('bulkDoneCount').textContent = j.completed_count;
+            document.getElementById('bulkFailCount').textContent = j.failed_count;
+            document.getElementById('bulkTotalCount').textContent = j.total_count;
+            const sm = { running: 'Running...', paused: 'Paused', cancelled: 'Cancelled', completed: 'Completed!' };
+            document.getElementById('bulkStatusLabel').textContent = sm[j.status] || j.status;
+            if (j.status === 'paused') { document.getElementById('btnBulkPause').style.display = 'none'; document.getElementById('btnBulkResume').style.display = ''; }
+            else { document.getElementById('btnBulkPause').style.display = ''; document.getElementById('btnBulkResume').style.display = 'none'; }
+            const im = { queued: 'fa-clock', processing: 'fa-spinner fa-spin', completed: 'fa-check-circle', failed: 'fa-times-circle' };
+            let h = '';
+            j.items.forEach((it, i) => {
+                const ic = im[it.status] || 'fa-circle', er = it.error ? ` — <span style="color:var(--danger);font-size:12px;">${esc(it.error).substring(0, 60)}</span>` : '', sc = it.result ? ` <span class="badge-accent">${it.result.scene_count} scenes</span>` : '';
+                h += `<div class="bulk-item-row ${it.status}"><span class="status-icon"><i class="fas ${ic}"></i></span><span style="color:var(--text-muted);width:30px;">${i + 1}.</span><span class="item-title">${esc(it.title)}</span>${sc}${er}</div>`;
+            });
+            document.getElementById('bulkItemsList').innerHTML = h;
+            if (j.status === 'completed' || j.status === 'cancelled') {
+                if (bulkEventSource) { bulkEventSource.close(); bulkEventSource = null; }
+                if (bulkPollTimer) { clearInterval(bulkPollTimer); bulkPollTimer = null; }
+                document.getElementById('bulkCompletedActions').style.display = 'flex';
+                if (j.status === 'completed') { document.getElementById('bulkProgressBar').style.width = '100%'; document.getElementById('bulkProgressBar').textContent = '100%'; }
+                toast(j.status === 'completed' ? `Done! ${j.completed_count}/${j.total_count} succeeded.` : 'Job cancelled.', j.status === 'completed' ? 'success' : 'info');
+            }
+        }
         function bulkPollStatus(jid) {
-            if (bulkPollTimer) clearInterval(bulkPollTimer);
-            bulkPollTimer = setInterval(async () => {
-                try {
-                    const d = await api(`/api/bulk/status/${jid}`); if (!d.success) return;
-                    const j = d.job, pct = Math.round(j.progress);
-                    document.getElementById('bulkProgressBar').style.width = pct + '%';
-                    document.getElementById('bulkProgressBar').textContent = pct + '%';
-                    document.getElementById('bulkDoneCount').textContent = j.completed_count;
-                    document.getElementById('bulkFailCount').textContent = j.failed_count;
-                    document.getElementById('bulkTotalCount').textContent = j.total_count;
-                    const sm = { running: 'Running...', paused: 'Paused', cancelled: 'Cancelled', completed: 'Completed!' };
-                    document.getElementById('bulkStatusLabel').textContent = sm[j.status] || j.status;
-                    if (j.status === 'paused') { document.getElementById('btnBulkPause').style.display = 'none'; document.getElementById('btnBulkResume').style.display = ''; }
-                    else { document.getElementById('btnBulkPause').style.display = ''; document.getElementById('btnBulkResume').style.display = 'none'; }
-                    const im = { queued: 'fa-clock', processing: 'fa-spinner fa-spin', completed: 'fa-check-circle', failed: 'fa-times-circle' };
-                    let h = '';
-                    j.items.forEach((it, i) => {
-                        const ic = im[it.status] || 'fa-circle', er = it.error ? ` — <span style="color:var(--danger);font-size:12px;">${esc(it.error).substring(0, 60)}</span>` : '', sc = it.result ? ` <span class="badge-accent">${it.result.scene_count} scenes</span>` : '';
-                        h += `<div class="bulk-item-row ${it.status}"><span class="status-icon"><i class="fas ${ic}"></i></span><span style="color:var(--text-muted);width:30px;">${i + 1}.</span><span class="item-title">${esc(it.title)}</span>${sc}${er}</div>`;
-                    });
-                    document.getElementById('bulkItemsList').innerHTML = h;
-                    if (j.status === 'completed' || j.status === 'cancelled') {
-                        clearInterval(bulkPollTimer);
-                        document.getElementById('bulkCompletedActions').style.display = 'flex';
-                        if (j.status === 'completed') { document.getElementById('bulkProgressBar').style.width = '100%'; document.getElementById('bulkProgressBar').textContent = '100%'; }
-                        toast(j.status === 'completed' ? `Done! ${j.completed_count}/${j.total_count} succeeded.` : 'Job cancelled.', j.status === 'completed' ? 'success' : 'info');
-                    }
-                } catch (e) { console.error('Poll err:', e); }
-            }, 2000);
+            // Close any existing connection
+            if (bulkEventSource) { bulkEventSource.close(); bulkEventSource = null; }
+            if (bulkPollTimer) { clearInterval(bulkPollTimer); bulkPollTimer = null; }
+            bulkEventSource = new EventSource(`/api/bulk/events/${jid}`);
+            bulkEventSource.onmessage = function(e) {
+                try { _bulkApplyUpdate(JSON.parse(e.data)); } catch(err) { console.error('Bulk SSE parse error:', err); }
+            };
+            bulkEventSource.onerror = function() {
+                // SSE dropped — fall back to polling until reconnect
+                if (bulkEventSource) { bulkEventSource.close(); bulkEventSource = null; }
+                if (!bulkPollTimer) bulkPollTimer = setInterval(async () => {
+                    try {
+                        const d = await api(`/api/bulk/status/${jid}`);
+                        if (d.success) { _bulkApplyUpdate(d.job); }
+                        if (d.success && ['completed','cancelled'].includes(d.job.status)) { clearInterval(bulkPollTimer); bulkPollTimer = null; }
+                    } catch(e) {}
+                }, 3000);
+            };
         }
 
         async function bulkPause() { if (!bulkCurrentJobId) return; const d = await api(`/api/bulk/pause/${bulkCurrentJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
@@ -2483,14 +2499,16 @@
         async function bulkCancel() { if (!bulkCurrentJobId) return; if (!confirm('Cancel this bulk job?')) return; const d = await api(`/api/bulk/cancel/${bulkCurrentJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
         function bulkExport() { if (bulkCurrentJobId) window.location.href = `/api/bulk/export/${bulkCurrentJobId}`; }
         async function bulkRetryFailed() { if (!bulkCurrentJobId) return; const d = await api(`/api/bulk/retry/${bulkCurrentJobId}`, { method: 'POST' }); if (d.success) { bulkCurrentJobId = d.job_id; toast(d.message, 'success'); bulkShowProgress(d.job_id); } else toast(d.message, 'error'); }
-        function bulkNewJob() { bulkReset(); if (bulkPollTimer) clearInterval(bulkPollTimer); }
+        function bulkNewJob() { bulkReset(); if (bulkPollTimer) { clearInterval(bulkPollTimer); bulkPollTimer = null; } if (bulkEventSource) { bulkEventSource.close(); bulkEventSource = null; } }
         async function bulkDownloadSample() { const d = await api('/api/bulk/sample'); if (!d.success) return; const b = new Blob([JSON.stringify(d.sample.example, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'bulk_sample.json'; a.click(); toast('Sample downloaded!', 'success'); }
 
         // ═══════════════════════════════════════════════════════════════════
         // Template Dropdowns (shared)
         // ═══════════════════════════════════════════════════════════════════
-        async function refreshTemplateDropdowns() {
-            const data = await api('/api/templates');
+        async function refreshTemplateDropdowns(cachedTemplates = null) {
+            const data = cachedTemplates
+                ? { success: true, templates: cachedTemplates }
+                : await api('/api/templates');
             if (!data.success) return;
             const names = Object.keys(data.templates);
 
@@ -2519,11 +2537,19 @@
         let nicheTitles = [];
         let nichePipelineJobId = null;
         let nichePollTimer = null;
+        let nicheEventSource = null;
 
         async function loadNichePresets() {
-            const d = await api('/api/niche/presets');
-            if (!d.success) return;
-            nichePresets = d.presets;
+            if (Object.keys(nichePresets).length > 0) return; // already loaded
+            let presetsData;
+            if (window._initCache && window._initCache.niche_presets) {
+                presetsData = window._initCache.niche_presets;
+            } else {
+                const d = await api('/api/niche/presets');
+                if (!d.success) return;
+                presetsData = d.presets;
+            }
+            nichePresets = presetsData;
             const grid = document.getElementById('nichePresetGrid');
             const emojiMap = {
                 'Dark Psychology':'🧠','Body Language':'👁️','True Crime':'🔍','Stoicism':'⚖️',
@@ -2733,48 +2759,59 @@
             nichePollPipeline(jid);
         }
 
+        function _nicheApplyUpdate(j) {
+            const pct = Math.round(j.progress);
+            document.getElementById('nicheProgressBar').style.width = pct + '%';
+            document.getElementById('nicheProgressBar').textContent = pct + '%';
+            document.getElementById('nicheDoneCount').textContent = j.completed_count;
+            document.getElementById('nicheFailCount').textContent = j.failed_count;
+            document.getElementById('nicheTotalCount').textContent = j.total_count;
+            const sm = { running: 'Running...', paused: 'Paused', cancelled: 'Cancelled', completed: 'Completed!' };
+            document.getElementById('nicheStatusLabel').textContent = sm[j.status] || j.status;
+            if (j.status === 'paused') {
+                document.getElementById('btnNichePause').style.display = 'none';
+                document.getElementById('btnNicheResume').style.display = '';
+            } else {
+                document.getElementById('btnNichePause').style.display = '';
+                document.getElementById('btnNicheResume').style.display = 'none';
+            }
+            const im = { queued: 'fa-clock', processing: 'fa-spinner fa-spin', completed: 'fa-check-circle', failed: 'fa-times-circle' };
+            let h = '';
+            j.items.forEach((it, i) => {
+                const ic = im[it.status] || 'fa-circle';
+                const er = it.error ? ` — <span style="color:var(--danger);font-size:12px;">${esc(it.error).substring(0, 60)}</span>` : '';
+                const sc = it.result ? ` <span class="badge-accent">${it.result.scene_count} scenes</span>` : '';
+                h += `<div class="bulk-item-row ${it.status}"><span class="status-icon"><i class="fas ${ic}"></i></span><span style="color:var(--text-muted);width:30px;">${i + 1}.</span><span class="item-title">${esc(it.title)}</span>${sc}${er}</div>`;
+            });
+            document.getElementById('nicheItemsList').innerHTML = h;
+            if (j.status === 'completed' || j.status === 'cancelled') {
+                if (nicheEventSource) { nicheEventSource.close(); nicheEventSource = null; }
+                if (nichePollTimer) { clearInterval(nichePollTimer); nichePollTimer = null; }
+                document.getElementById('nicheCompletedActions').style.display = 'flex';
+                if (j.status === 'completed') {
+                    document.getElementById('nicheProgressBar').style.width = '100%';
+                    document.getElementById('nicheProgressBar').textContent = '100%';
+                }
+                toast(j.status === 'completed' ? `Pipeline complete! ${j.completed_count}/${j.total_count} succeeded.` : 'Pipeline cancelled.', j.status === 'completed' ? 'success' : 'info');
+            }
+        }
         function nichePollPipeline(jid) {
-            if (nichePollTimer) clearInterval(nichePollTimer);
-            nichePollTimer = setInterval(async () => {
-                try {
-                    const d = await api(`/api/bulk/status/${jid}`);
-                    if (!d.success) return;
-                    const j = d.job, pct = Math.round(j.progress);
-                    document.getElementById('nicheProgressBar').style.width = pct + '%';
-                    document.getElementById('nicheProgressBar').textContent = pct + '%';
-                    document.getElementById('nicheDoneCount').textContent = j.completed_count;
-                    document.getElementById('nicheFailCount').textContent = j.failed_count;
-                    document.getElementById('nicheTotalCount').textContent = j.total_count;
-                    const sm = { running: 'Running...', paused: 'Paused', cancelled: 'Cancelled', completed: 'Completed!' };
-                    document.getElementById('nicheStatusLabel').textContent = sm[j.status] || j.status;
-                    if (j.status === 'paused') {
-                        document.getElementById('btnNichePause').style.display = 'none';
-                        document.getElementById('btnNicheResume').style.display = '';
-                    } else {
-                        document.getElementById('btnNichePause').style.display = '';
-                        document.getElementById('btnNicheResume').style.display = 'none';
-                    }
-                    const im = { queued: 'fa-clock', processing: 'fa-spinner fa-spin', completed: 'fa-check-circle', failed: 'fa-times-circle' };
-                    let h = '';
-                    j.items.forEach((it, i) => {
-                        const ic = im[it.status] || 'fa-circle';
-                        const er = it.error ? ` — <span style="color:var(--danger);font-size:12px;">${esc(it.error).substring(0, 60)}</span>` : '';
-                        const sc = it.result ? ` <span class="badge-accent">${it.result.scene_count} scenes</span>` : '';
-                        h += `<div class="bulk-item-row ${it.status}"><span class="status-icon"><i class="fas ${ic}"></i></span><span style="color:var(--text-muted);width:30px;">${i + 1}.</span><span class="item-title">${esc(it.title)}</span>${sc}${er}</div>`;
-                    });
-                    document.getElementById('nicheItemsList').innerHTML = h;
-                    if (j.status === 'completed' || j.status === 'cancelled') {
-                        clearInterval(nichePollTimer);
-                        nichePollTimer = null;
-                        document.getElementById('nicheCompletedActions').style.display = 'flex';
-                        if (j.status === 'completed') {
-                            document.getElementById('nicheProgressBar').style.width = '100%';
-                            document.getElementById('nicheProgressBar').textContent = '100%';
-                        }
-                        toast(j.status === 'completed' ? `Pipeline complete! ${j.completed_count}/${j.total_count} succeeded.` : 'Pipeline cancelled.', j.status === 'completed' ? 'success' : 'info');
-                    }
-                } catch (e) { console.error('Poll err:', e); }
-            }, 2000);
+            if (nicheEventSource) { nicheEventSource.close(); nicheEventSource = null; }
+            if (nichePollTimer) { clearInterval(nichePollTimer); nichePollTimer = null; }
+            nicheEventSource = new EventSource(`/api/bulk/events/${jid}`);
+            nicheEventSource.onmessage = function(e) {
+                try { _nicheApplyUpdate(JSON.parse(e.data)); } catch(err) { console.error('Niche SSE parse error:', err); }
+            };
+            nicheEventSource.onerror = function() {
+                if (nicheEventSource) { nicheEventSource.close(); nicheEventSource = null; }
+                if (!nichePollTimer) nichePollTimer = setInterval(async () => {
+                    try {
+                        const d = await api(`/api/bulk/status/${jid}`);
+                        if (d.success) { _nicheApplyUpdate(d.job); }
+                        if (d.success && ['completed','cancelled'].includes(d.job.status)) { clearInterval(nichePollTimer); nichePollTimer = null; }
+                    } catch(e) {}
+                }, 3000);
+            };
         }
 
         async function nichePausePipeline() { if (!nichePipelineJobId) return; const d = await api(`/api/bulk/pause/${nichePipelineJobId}`, { method: 'POST' }); toast(d.message, d.success ? 'info' : 'error'); }
@@ -2809,6 +2846,7 @@
             const tipsEl = document.getElementById('nicheStrategyTips');
             tipsEl.style.display = 'none';
             tipsEl.innerHTML = '';
+            if (nicheEventSource) { nicheEventSource.close(); nicheEventSource = null; }
             if (nichePollTimer) {
                 clearInterval(nichePollTimer);
                 nichePollTimer = null;
@@ -2875,6 +2913,7 @@
         let adobeNicheDataCache = {};
         let adobeJobId          = null;
         let adobePollTimer      = null;
+        let adobeEventSource    = null;
         let adobeCurrentStep    = 1;
 
         // ── Step navigation ──────────────────────────────────────────────
@@ -2889,6 +2928,7 @@
         }
 
         function adobeBackToStep1() {
+            if (adobeEventSource) { adobeEventSource.close(); adobeEventSource = null; }
             if (adobePollTimer) { clearInterval(adobePollTimer); adobePollTimer = null; }
             adobeGoToStep(1);
         }
@@ -2898,12 +2938,18 @@
             if (Object.keys(adobeNicheDataCache).length > 0) return; // already loaded
             const grid = document.getElementById('adobeNicheGrid');
             try {
-                const d = await api('/api/adobe-stock/niches');
-                if (!d.success) throw new Error(d.message);
-                adobeNicheDataCache = d.niches;
+                let niches;
+                if (window._initCache && window._initCache.adobe_stock_niches) {
+                    niches = window._initCache.adobe_stock_niches;
+                } else {
+                    const d = await api('/api/adobe-stock/niches');
+                    if (!d.success) throw new Error(d.message);
+                    niches = d.niches;
+                }
+                adobeNicheDataCache = niches;
                 grid.innerHTML = '';
                 const ctrColors = { 'Very High': '#3dd68c', 'High': '#f0a444', 'Medium': '#6c8ebf' };
-                Object.entries(d.niches).forEach(([name, info]) => {
+                Object.entries(niches).forEach(([name, info]) => {
                     const ctrColor = ctrColors[info.ctr_potential] || '#f0a444';
                     const card = document.createElement('div');
                     card.className = 'niche-preset-card';
@@ -3066,9 +3112,8 @@
                 adobeGoToStep(3);
                 toast('Adobe Stock pipeline started!', 'success');
 
-                // Begin polling
-                if (adobePollTimer) clearInterval(adobePollTimer);
-                adobePollTimer = setInterval(adobePollStatus, 2500);
+                // Connect SSE stream for real-time progress
+                adobeConnectSSE(adobeJobId);
 
             } catch(e) {
                 toast('Error: ' + e.message, 'error');
@@ -3079,6 +3124,36 @@
         }
 
         // ── Poll job status ───────────────────────────────────────────────
+        // ── SSE connection for real-time Adobe Stock job progress ─────────
+        function adobeConnectSSE(jid) {
+            if (adobeEventSource) { adobeEventSource.close(); adobeEventSource = null; }
+            if (adobePollTimer)   { clearInterval(adobePollTimer); adobePollTimer = null; }
+            adobeEventSource = new EventSource(`/api/adobe-stock/events/${jid}`);
+            adobeEventSource.onmessage = function(e) {
+                try {
+                    const job = JSON.parse(e.data);
+                    if (job.error) return;
+                    adobeUpdateJobUI(job);
+                    if (['completed','cancelled','failed'].includes(job.status)) {
+                        adobeEventSource.close();
+                        adobeEventSource = null;
+                    }
+                } catch(err) { console.error('Adobe SSE parse error:', err); }
+            };
+            adobeEventSource.onerror = function() {
+                if (adobeEventSource) { adobeEventSource.close(); adobeEventSource = null; }
+                if (!adobePollTimer) adobePollTimer = setInterval(async () => {
+                    try {
+                        const d = await api(`/api/adobe-stock/status/${jid}`);
+                        if (!d.success) return;
+                        adobeUpdateJobUI(d.job);
+                        if (['completed','cancelled','failed'].includes(d.job.status)) { clearInterval(adobePollTimer); adobePollTimer = null; }
+                    } catch(e) {}
+                }, 2500);
+            };
+        }
+
+        // ── Legacy poll (SSE fallback) ─────────────────────────────────────
         async function adobePollStatus() {
             if (!adobeJobId) return;
             try {
@@ -3158,7 +3233,7 @@
             const d = await api(`/api/adobe-stock/resume/${adobeJobId}`, { method: 'POST' });
             if (d.success) {
                 toast('Pipeline resumed', 'success');
-                if (!adobePollTimer) adobePollTimer = setInterval(adobePollStatus, 2500);
+                if (!adobeEventSource && !adobePollTimer) adobeConnectSSE(adobeJobId);
             } else toast(d.message, 'error');
         }
 
@@ -3171,6 +3246,7 @@
         }
 
         function adobeNewBatch() {
+            if (adobeEventSource) { adobeEventSource.close(); adobeEventSource = null; }
             if (adobePollTimer) { clearInterval(adobePollTimer); adobePollTimer = null; }
             adobeJobId = null;
             document.getElementById('adobeStep3').style.display = 'none';
@@ -3191,10 +3267,20 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // Init
+        // Init — single /api/init round-trip pre-fetches all static data
         // ═══════════════════════════════════════════════════════════════════
-        document.addEventListener('DOMContentLoaded', () => {
-            refreshTemplateDropdowns();
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const d = await api('/api/init');
+                if (d.success) {
+                    window._initCache = d;
+                    refreshTemplateDropdowns(d.templates);
+                } else {
+                    refreshTemplateDropdowns();
+                }
+            } catch(e) {
+                refreshTemplateDropdowns();
+            }
         });
     </script>
 </body>
