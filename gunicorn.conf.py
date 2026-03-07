@@ -5,7 +5,7 @@
 import multiprocessing
 
 # ── Binding ───────────────────────────────────────────────────────────────
-bind = "0.0.0.0:5000"
+bind = "0.0.0.0:5001"
 
 # ── Workers ───────────────────────────────────────────────────────────────
 # Thread-based workers are required for SSE (streaming responses).

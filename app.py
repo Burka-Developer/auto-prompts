@@ -47,6 +47,7 @@ BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "output"
 UPLOAD_DIR = BASE_DIR / "uploads"
 TEMPLATES_FILE = BASE_DIR / "templates_data.json"
+NICHES_FILE   = BASE_DIR / "niches_data.json"
 
 GEMINI_MODEL = "gemini-2.5-flash"
 MAX_RETRIES = 4
@@ -578,6 +579,32 @@ def _save_templates(data: dict) -> None:
     TEMPLATES_FILE.write_text(json.dumps(data, indent=4, ensure_ascii=False), encoding="utf-8")
 
 
+def _load_custom_niches() -> dict:
+    """Load user-created custom niches from niches_data.json."""
+    if NICHES_FILE.exists():
+        try:
+            return json.loads(NICHES_FILE.read_text(encoding="utf-8"))
+        except Exception as exc:
+            log.warning("niches_data.json invalid; falling back to empty: %s", exc)
+            return {}
+    return {}
+
+
+def _save_custom_niches(data: dict) -> None:
+    NICHES_FILE.write_text(json.dumps(data, indent=4, ensure_ascii=False), encoding="utf-8")
+
+
+def _get_all_niches() -> dict:
+    """Merge built-in NICHE_PRESETS with user-created custom niches.
+    Custom niches are tagged is_builtin=False so the UI can distinguish them."""
+    result: dict = {}
+    for name, preset in NICHE_PRESETS.items():
+        result[name] = {**preset, "is_builtin": True}
+    for name, niche in _load_custom_niches().items():
+        result[name] = {**niche, "is_builtin": False}
+    return result
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Gemini Generation Logic
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1003,9 +1030,13 @@ def _write_outputs(
     gen_video_prompts: bool,
     gen_i2v_prompts: bool,
     include_dialogue: bool,
+    niche_folder: str = "",
 ) -> dict:
     """Write all output files. Returns dict with paths and content for the UI."""
-    project = OUTPUT_DIR / _sanitize(folder_name)
+    if niche_folder.strip():
+        project = OUTPUT_DIR / _sanitize(niche_folder) / _sanitize(folder_name)
+    else:
+        project = OUTPUT_DIR / _sanitize(folder_name)
     sep = "=" * 60
 
     created_files = {}
@@ -1133,6 +1164,7 @@ def api_init():
         "success": True,
         "templates": _load_templates(),
         "niche_presets": NICHE_PRESETS,
+        "all_niches": _get_all_niches(),
         "adobe_stock_niches": ADOBE_STOCK_NICHES,
     })
 
@@ -1162,6 +1194,17 @@ def api_generate():
         num_i2v_prompts = int(data.get("num_i2v_prompts") or 0)
         image_style = (data.get("image_style") or "").strip()
         video_style = (data.get("video_style") or "").strip()
+        niche_folder = (data.get("niche_folder") or "").strip()
+
+        # If a niche is selected, auto-use its image/video styles when not overridden
+        if niche_folder and not image_style:
+            all_niches = _get_all_niches()
+            niche_info = all_niches.get(niche_folder, {})
+            image_style = niche_info.get("image_style", "")
+            video_style = niche_info.get("video_style", video_style)
+            # Use niche's custom output sub-folder if defined
+            if niche_info.get("output_folder"):
+                niche_folder = niche_info["output_folder"].strip() or niche_folder
 
         template_instructions = _extract_template_instructions(template_name)
         wc = _estimate_words(transcript)
@@ -1192,6 +1235,7 @@ def api_generate():
             gen_video_prompts=gen_video_prompts,
             gen_i2v_prompts=gen_i2v_prompts,
             include_dialogue=include_dialogue,
+            niche_folder=niche_folder,
         )
 
         return jsonify({"success": True, **output})
@@ -1362,6 +1406,94 @@ def get_existing(template_name):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Flask Routes — Custom Niche Management API
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/niches", methods=["GET"])
+def get_all_niches_route():
+    """Return all niches — built-in presets merged with custom user niches."""
+    return jsonify({"success": True, "niches": _get_all_niches()})
+
+
+@app.route("/api/niches", methods=["POST"])
+def create_niche():
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"success": False, "message": "Niche name is required"})
+    if name in NICHE_PRESETS:
+        return jsonify({"success": False, "message": f'"{name}" is a built-in niche and cannot be overwritten'})
+    custom = _load_custom_niches()
+    if name in custom:
+        return jsonify({"success": False, "message": "A custom niche with this name already exists"})
+    niche_data = {
+        "name": name,
+        "description": (data.get("description") or "").strip(),
+        "image_style": (data.get("image_style") or "").strip(),
+        "video_style": (data.get("video_style") or "").strip(),
+        "tone": (data.get("tone") or "").strip(),
+        "target_audience": (data.get("target_audience") or "").strip(),
+        "sub_topics": [str(s).strip() for s in (data.get("sub_topics") or []) if str(s).strip()],
+        "assigned_template": (data.get("assigned_template") or "").strip(),
+        "emoji": (data.get("emoji") or "✨").strip() or "✨",
+        "output_folder": (data.get("output_folder") or "").strip(),
+    }
+    custom[name] = niche_data
+    _save_custom_niches(custom)
+    return jsonify({"success": True, "message": f'Niche "{name}" created.'})
+
+
+@app.route("/api/niches/<name>", methods=["GET"])
+def get_niche(name):
+    all_niches = _get_all_niches()
+    if name in all_niches:
+        return jsonify({"success": True, "niche": all_niches[name], "name": name})
+    return jsonify({"success": False, "message": "Niche not found"})
+
+
+@app.route("/api/niches/<name>", methods=["PUT"])
+def update_niche(name):
+    if name in NICHE_PRESETS:
+        return jsonify({"success": False, "message": f'"{name}" is a built-in niche and cannot be modified'})
+    data = request.json or {}
+    new_name = (data.get("name") or name).strip()
+    custom = _load_custom_niches()
+    if name not in custom:
+        return jsonify({"success": False, "message": "Niche not found"})
+    if new_name != name and (new_name in custom or new_name in NICHE_PRESETS):
+        return jsonify({"success": False, "message": "Name already taken"})
+    niche_data = {
+        "name": new_name,
+        "description": (data.get("description") or "").strip(),
+        "image_style": (data.get("image_style") or "").strip(),
+        "video_style": (data.get("video_style") or "").strip(),
+        "tone": (data.get("tone") or "").strip(),
+        "target_audience": (data.get("target_audience") or "").strip(),
+        "sub_topics": [str(s).strip() for s in (data.get("sub_topics") or []) if str(s).strip()],
+        "assigned_template": (data.get("assigned_template") or "").strip(),
+        "emoji": (data.get("emoji") or "✨").strip() or "✨",
+        "output_folder": (data.get("output_folder") or "").strip(),
+    }
+    if new_name != name:
+        del custom[name]
+    custom[new_name] = niche_data
+    _save_custom_niches(custom)
+    return jsonify({"success": True, "message": f'Niche "{new_name}" updated.'})
+
+
+@app.route("/api/niches/<name>", methods=["DELETE"])
+def delete_niche(name):
+    if name in NICHE_PRESETS:
+        return jsonify({"success": False, "message": f'"{name}" is a built-in niche and cannot be deleted'})
+    custom = _load_custom_niches()
+    if name not in custom:
+        return jsonify({"success": False, "message": "Custom niche not found"})
+    del custom[name]
+    _save_custom_niches(custom)
+    return jsonify({"success": True, "message": f'Niche "{name}" deleted.'})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Flask Routes — Bulk Automation API
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1506,6 +1638,12 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
     prompt_template_name = item.get("prompt_template", "") or None
     or_words = item.get("or_words", "")
 
+    # Fall back to niche's assigned template when the item has none
+    if not prompt_template_name:
+        prompt_template_name = (options.get("default_template") or "").strip() or None
+
+    niche_folder = (options.get("niche_folder") or "").strip()
+
     if or_words:
         description = f"{description}\n\nAdditional keywords/context: {or_words}".strip()
 
@@ -1548,6 +1686,7 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
             gen_video_prompts=options.get("gen_video_prompts", True),
             gen_i2v_prompts=options.get("gen_i2v_prompts", False),
             include_dialogue=options.get("include_dialogue", False),
+            niche_folder=niche_folder,
         )
 
         elapsed = time.time() - item_start_time
@@ -2234,6 +2373,14 @@ def niche_launch_pipeline():
 
         if not items:
             return jsonify({"success": False, "message": "No items to process."})
+
+        # Inject niche folder into options so each worker uses it
+        if niche:
+            options.setdefault("niche_folder", niche)
+            # Auto-load the niche's assigned template (if any) as the default
+            niche_info = _get_all_niches().get(niche, {})
+            if niche_info.get("assigned_template"):
+                options.setdefault("default_template", niche_info["assigned_template"])
 
         for item in items:
             if niche and not item.get("description"):
@@ -3008,5 +3155,5 @@ if __name__ == "__main__":
     ADOBE_STOCK_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     if not TEMPLATES_FILE.exists():
         _save_templates({})
-    log.info("Starting YouTube Automation Tool on http://localhost:5000")
-    app.run(debug=True, port=5000, use_reloader=False)
+    log.info("Starting YouTube Automation Tool on http://localhost:5001")
+    app.run(debug=True, port=5001, use_reloader=False)

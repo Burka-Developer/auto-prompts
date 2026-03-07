@@ -1,0 +1,49 @@
+2026-03-07 14:39:24 | INFO    | Starting YouTube Automation Tool on http://localhost:5001
+2026-03-07 14:40:23 | INFO    | [TITLES] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:40:49 | INFO    | [TITLES] SUCCESS — 15 titles | key=...0tZk | cycle 1
+2026-03-07 14:41:34 | INFO    | [BULK bf6f045b] Starting parallel processing — 15 items | workers=3
+2026-03-07 14:41:34 | INFO    | Niche pipeline bf6f045b started: 15 videos for 'Relationship Psychology'
+2026-03-07 14:41:34 | INFO    | [BULK bf6f045b] ── Item 1/15 START ── '7 Dangerous Signs Your Partner Is Emotionally Immature [WARNING]'
+2026-03-07 14:41:34 | INFO    | [BULK bf6f045b] ── Item 2/15 START ── 'The Hidden Psychology: Why We Self-Sabotage Love & How to Stop'
+2026-03-07 14:41:34 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:41:34 | INFO    | [BULK bf6f045b] ── Item 3/15 START ── 'Psychologists Reveal 5 Silent Signs Someone Is Attracted To You [Study]'
+2026-03-07 14:41:34 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:41:34 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:44:21 | INFO    | [GEN] SUCCESS — 10 scenes | key=...0tZk | cycle 1 | latency=167.4s
+2026-03-07 14:44:21 | INFO    | [BULK bf6f045b] ── Item 2/15 DONE ── 'The Hidden Psychology: Why We Self-Sabotage Love & How to Stop' | 10 scenes | 167.4s
+2026-03-07 14:44:21 | INFO    | [BULK bf6f045b] ── Item 4/15 START ── 'STOP Doing This! 99% of People Fail At Healthy Relationships [Urgent]'
+2026-03-07 14:44:21 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:44:24 | INFO    | [GEN] SUCCESS — 11 scenes | key=...0tZk | cycle 1 | latency=170.4s
+2026-03-07 14:44:24 | INFO    | [BULK bf6f045b] ── Item 1/15 DONE ── '7 Dangerous Signs Your Partner Is Emotionally Immature [WARNING]' | 11 scenes | 170.4s
+2026-03-07 14:44:24 | INFO    | [BULK bf6f045b] ── Item 5/15 START ── 'What Nobody Tells You About Attachment Styles & Real Love [Explained]'
+2026-03-07 14:44:24 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:46:45 | INFO    | [GEN] SUCCESS — 11 scenes | key=...0tZk | cycle 1 | latency=140.7s
+2026-03-07 14:46:45 | INFO    | [BULK bf6f045b] ── Item 5/15 DONE ── 'What Nobody Tells You About Attachment Styles & Real Love [Explained]' | 11 scenes | 140.7s
+2026-03-07 14:46:45 | INFO    | [BULK bf6f045b] ── Item 6/15 START ── '10 Brutal Truths About Breakups You MUST Know Before Moving On'
+2026-03-07 14:46:45 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:47:04 | INFO    | [GEN] SUCCESS — 11 scenes | key=...0tZk | cycle 1 | latency=163.0s
+2026-03-07 14:47:04 | INFO    | [BULK bf6f045b] ── Item 4/15 DONE ── 'STOP Doing This! 99% of People Fail At Healthy Relationships [Urgent]' | 11 scenes | 163.0s
+2026-03-07 14:47:04 | INFO    | [BULK bf6f045b] ── Item 7/15 START ── 'Toxic vs. Healthy Love: The Shocking Differences You Miss [Warning]'
+2026-03-07 14:47:04 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:48:56 | INFO    | [GEN] SUCCESS — 11 scenes | key=...0tZk | cycle 1 | latency=111.9s
+2026-03-07 14:48:56 | INFO    | [BULK bf6f045b] ── Item 7/15 DONE ── 'Toxic vs. Healthy Love: The Shocking Differences You Miss [Warning]' | 11 scenes | 111.9s
+2026-03-07 14:48:56 | INFO    | [BULK bf6f045b] ── Item 8/15 START ── 'The SECRET Psychology of Unstoppable Attraction (Works Every Time)'
+2026-03-07 14:48:56 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:50:25 | INFO    | [GEN] SUCCESS — 10 scenes | key=...0tZk | cycle 1 | latency=88.5s
+2026-03-07 14:50:25 | INFO    | [BULK bf6f045b] ── Item 8/15 DONE ── 'The SECRET Psychology of Unstoppable Attraction (Works Every Time)' | 10 scenes | 88.5s
+2026-03-07 14:50:25 | INFO    | [BULK bf6f045b] ── Item 9/15 START ── 'Stop Pushing Love Away: Fix Your Anxious Attachment NOW! [Healing]'
+2026-03-07 14:50:25 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:52:29 | INFO    | [GEN] SUCCESS — 10 scenes | key=...0tZk | cycle 1 | latency=123.9s
+2026-03-07 14:52:29 | INFO    | [BULK bf6f045b] ── Item 9/15 DONE ── 'Stop Pushing Love Away: Fix Your Anxious Attachment NOW! [Healing]' | 10 scenes | 123.9s
+2026-03-07 14:52:29 | INFO    | [BULK bf6f045b] ── Item 10/15 START ── '3 Powerful Communication Hacks 99% of Couples Don't Know'
+2026-03-07 14:52:29 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:54:32 | INFO    | [GEN] SUCCESS — 10 scenes | key=...0tZk | cycle 1 | latency=123.3s
+2026-03-07 14:54:32 | INFO    | [BULK bf6f045b] ── Item 10/15 DONE ── '3 Powerful Communication Hacks 99% of Couples Don't Know' | 10 scenes | 123.3s
+2026-03-07 14:54:32 | INFO    | [BULK bf6f045b] ── Item 11/15 START ── 'This Is Why You Attract The WRONG People [Psychology Explained]'
+2026-03-07 14:54:32 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 14:56:44 | INFO    | [GEN] SUCCESS — 10 scenes | key=...0tZk | cycle 1 | latency=132.2s
+2026-03-07 14:56:44 | INFO    | [BULK bf6f045b] ── Item 11/15 DONE ── 'This Is Why You Attract The WRONG People [Psychology Explained]' | 10 scenes | 132.2s
+2026-03-07 14:56:44 | INFO    | [BULK bf6f045b] ── Item 12/15 START ── 'The Dark Psychology of Manipulation & How To Spot It [Forbidden]'
+2026-03-07 14:56:44 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-07 17:38:54 | INFO    | Starting YouTube Automation Tool on http://localhost:5001
+2026-03-07 19:20:07 | INFO    | Starting YouTube Automation Tool on http://localhost:5001

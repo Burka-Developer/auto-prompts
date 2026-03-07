@@ -518,6 +518,74 @@
             align-items: center; justify-content: center;
         }
         .niche-preset-card.selected .niche-selected-check { display: flex; }
+        /* custom-niche variant */
+        .niche-preset-card.is-custom { border-color: rgba(61,214,140,.25); }
+        .niche-preset-card.is-custom:hover, .niche-preset-card.is-custom.selected { border-color: var(--green); background: rgba(61,214,140,.06); }
+        .niche-preset-card.is-custom::before { background: linear-gradient(90deg,var(--green),#2ec4b6); }
+
+        /* ══════════════════════════════════════
+           NICHE MANAGER PAGE
+        ══════════════════════════════════════ */
+        .nm-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            transition: border-color .15s, box-shadow .15s;
+            position: relative;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .nm-card.builtin { border-left: 3px solid rgba(240,164,68,.5); }
+        .nm-card.custom  { border-left: 3px solid rgba(61,214,140,.5); }
+        .nm-card:hover { border-color: var(--border2); box-shadow: 0 4px 20px rgba(0,0,0,.35); }
+        .nm-badge {
+            font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+            letter-spacing: .4px; text-transform: uppercase;
+        }
+        .nm-badge.builtin { background: var(--accent-dim); color: var(--accent); }
+        .nm-badge.custom  { background: rgba(61,214,140,.14); color: var(--green); }
+        .nm-emoji { font-size: 28px; line-height: 1; }
+        .nm-name  { font-size: 14px; font-weight: 800; color: var(--text); }
+        .nm-desc  { font-size: 12px; color: var(--muted2); line-height: 1.5; flex: 1; }
+        .nm-style-preview {
+            font-size: 11px; color: var(--muted);
+            background: var(--bg-input); border-radius: 6px; padding: 6px 9px;
+            border: 1px solid var(--border);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .nm-subtopics { display: flex; flex-wrap: wrap; gap: 4px; }
+        .nm-subtopic-tag {
+            background: rgba(255,255,255,.06); border: 1px solid var(--border);
+            color: var(--muted2); font-size: 10px; padding: 2px 7px; border-radius: 99px;
+        }
+        .nm-actions { display: flex; gap: 6px; margin-top: 4px; }
+        .nm-filter-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .nm-filter-tab {
+            padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+            cursor: pointer; background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--muted2); transition: all .15s;
+        }
+        .nm-filter-tab:hover { border-color: var(--border2); color: var(--text); }
+        .nm-filter-tab.active { background: var(--accent-dim); border-color: rgba(240,164,68,.3); color: var(--accent); }
+        .nm-search {
+            margin-left: auto; position: relative;
+        }
+        .nm-search input {
+            background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px;
+            padding: 6px 12px 6px 30px; font-size: 12px; color: var(--text); width: 200px;
+            outline: none;
+        }
+        .nm-search input:focus { border-color: var(--accent); }
+        .nm-search i { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 11px; }
+
+        /* Sub-topic tag input inside modal */
+        .st-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; padding: 4px 0; }
+        .st-tag {
+            background: rgba(240,164,68,.13); border: 1px solid rgba(240,164,68,.25);
+            color: var(--accent); font-size: 12px; padding: 3px 10px; border-radius: 99px;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .st-tag button { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 11px; line-height: 1; }
 
         /* ══════════════════════════════════════
            NICHE HUB — TITLE CARDS
@@ -895,6 +963,10 @@
                 <div class="nav-icon"><i class="fas fa-sitemap"></i></div>
                 <span>Folder Creator</span>
             </div>
+            <div class="nav-item" data-page="niche-manager">
+                <div class="nav-icon"><i class="fas fa-layer-group"></i></div>
+                <span>Niche Manager</span>
+            </div>
         </div>
 
         <div class="nav-group">
@@ -957,6 +1029,12 @@
                             <label class="form-label">Prompt Template <span class="opt">optional</span></label>
                             <select class="form-select-dark" id="genTemplate">
                                 <option value="">None (default prompts)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Niche &amp; Output Folder <span class="opt">auto-fills styles · organises output</span></label>
+                            <select class="form-select-dark" id="genNiche" onchange="onGenNicheChange()">
+                                <option value="">None (flat output)</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -1160,6 +1238,96 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- ─── PAGE: Niche Manager ─── -->
+        <div class="page" id="page-niche-manager" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-layer-group"></i></span> Niche Manager</h2>
+                    <p>Create custom niches with their own styles, sub-topics, and template assignments. Output is organised into niche sub-folders.</p>
+                </div>
+                <button class="btn-accent" onclick="nmShowCreate()"><i class="fas fa-plus"></i> New Custom Niche</button>
+            </div>
+
+            <div class="nm-filter-tabs">
+                <button class="nm-filter-tab active" id="nmTabAll"     onclick="nmSwitchTab('all')">All Niches</button>
+                <button class="nm-filter-tab"        id="nmTabCustom"  onclick="nmSwitchTab('custom')">Custom Only</button>
+                <button class="nm-filter-tab"        id="nmTabBuiltin" onclick="nmSwitchTab('builtin')">Built-In</button>
+                <div class="nm-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search niches…" oninput="nmSearch(this.value)" id="nmSearchInput">
+                </div>
+            </div>
+
+            <div id="nmNicheGrid" class="row g-3"></div>
+        </div>
+
+        <!-- ─── MODAL: Create / Edit Niche ─── -->
+        <div class="modal fade" id="nicheModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="nicheModalTitle">New Custom Niche</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <input type="hidden" id="nmEditingName">
+                <div class="row g-3">
+                  <div class="col-8">
+                    <label class="form-label">Niche Name <span class="required">*</span></label>
+                    <input type="text" class="form-control-dark" id="nmName" placeholder="e.g. True Crime Documentaries">
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label">Emoji / Icon</label>
+                    <input type="text" class="form-control-dark" id="nmEmoji" placeholder="🎭" maxlength="4">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Description <span class="opt">shown in cards</span></label>
+                    <input type="text" class="form-control-dark" id="nmDesc" placeholder="Brief description of this niche…">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Image Style</label>
+                    <textarea class="form-control-dark" id="nmImageStyle" rows="4" placeholder="Cinematic noir, deep shadows, high contrast, photorealistic…"></textarea>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Video Style</label>
+                    <textarea class="form-control-dark" id="nmVideoStyle" rows="4" placeholder="Slow dolly zoom, dramatic cuts, moody colour grade…"></textarea>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Tone</label>
+                    <input type="text" class="form-control-dark" id="nmTone" placeholder="e.g. Authoritative, mysterious, suspenseful">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Target Audience</label>
+                    <input type="text" class="form-control-dark" id="nmAudience" placeholder="e.g. 18-45, psychology enthusiasts">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Assign Prompt Template <span class="opt">default for bulk & Niche Hub</span></label>
+                    <select class="form-select-dark" id="nmTemplate">
+                      <option value="">None</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Output Sub-Folder Override <span class="opt">leave blank to use niche name</span></label>
+                    <input type="text" class="form-control-dark" id="nmOutputFolder" placeholder="e.g. true-crime (blank = niche name)">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Sub-Topics / Tags</label>
+                    <div style="display:flex;gap:6px;margin-bottom:8px;">
+                      <input type="text" class="form-control-dark" id="nmSubTopicInput" placeholder="Type a tag and press Enter…" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();nmAddSubTopic();}">
+                      <button class="btn-ghost" onclick="nmAddSubTopic()"><i class="fas fa-plus"></i> Add</button>
+                    </div>
+                    <div class="st-tags" id="nmSubTopicsList"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn-accent" onclick="nmSaveNiche()">Save Niche</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ─── PAGE: Logs ─── -->
@@ -1846,6 +2014,11 @@
         // ═══════════════════════════════════════════════════════════════════
         // Navigation
         // ═══════════════════════════════════════════════════════════════════
+        function navigateTo(page) {
+            const el = document.querySelector(`.nav-item[data-page="${page}"]`);
+            if (el) el.click();
+        }
+
         document.querySelectorAll('.nav-item[data-page]').forEach(el => {
             el.addEventListener('click', () => {
                 document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1865,6 +2038,7 @@
                 if (pg === 'prompt-creator') refreshTemplateDropdowns();
                 if (pg === 'folder-creator') refreshTemplateDropdowns();
                 if (pg === 'logs') loadLogs('all');
+                if (pg === 'niche-manager') loadNicheManager();
                 if (pg !== 'niche') {
                     if (nichePollTimer) { clearInterval(nichePollTimer); nichePollTimer = null; }
                     if (nicheEventSource) { nicheEventSource.close(); nicheEventSource = null; }
@@ -1896,6 +2070,7 @@
                 num_i2v_prompts: parseInt(document.getElementById('genNumI2V').value) || 0,
                 image_style: document.getElementById('genImageStyle').value.trim(),
                 video_style: document.getElementById('genVideoStyle').value.trim(),
+                niche_folder: document.getElementById('genNiche').value,
             };
 
             document.getElementById('spinner').classList.add('show');
@@ -2512,7 +2687,7 @@
             if (!data.success) return;
             const names = Object.keys(data.templates);
 
-            ['genTemplate', 'pcTemplate', 'fcTemplate'].forEach(id => {
+            ['genTemplate', 'pcTemplate', 'fcTemplate', 'nmTemplate'].forEach(id => {
                 const sel = document.getElementById(id);
                 if (!sel) return;
                 const current = sel.value;
@@ -2531,6 +2706,243 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        //  NICHE MANAGER
+        // ═══════════════════════════════════════════════════════════════════
+        let _nmAllNiches = {};          // full dataset keyed by niche name
+        let _nmCurrentTab = 'all';      // 'all' | 'custom' | 'builtin'
+        let _nmSearchQuery = '';
+
+        async function loadNicheManager() {
+            const d = await api('/api/niches');
+            if (!d.success) return toast('Failed to load niches', 'error');
+            _nmAllNiches = d.niches || {};
+            // Also update in-memory caches so Niche Hub stays in sync
+            if (window._initCache) window._initCache.all_niches = _nmAllNiches;
+            nichePresets = {};          // force Niche Hub to reload
+            await refreshTemplateDropdowns();
+            nmRenderGrid();
+        }
+
+        function nmSwitchTab(tab) {
+            _nmCurrentTab = tab;
+            ['all','custom','builtin'].forEach(t => {
+                const el = document.getElementById('nmTab' + t.charAt(0).toUpperCase() + t.slice(1));
+                if (el) el.classList.toggle('active', t === tab);
+            });
+            nmRenderGrid();
+        }
+
+        function nmSearch(q) {
+            _nmSearchQuery = (q || '').toLowerCase();
+            nmRenderGrid();
+        }
+
+        function nmRenderGrid() {
+            const grid = document.getElementById('nmNicheGrid');
+            if (!grid) return;
+            let entries = Object.entries(_nmAllNiches);
+            if (_nmCurrentTab === 'custom')  entries = entries.filter(([,p]) => !p.is_builtin);
+            if (_nmCurrentTab === 'builtin') entries = entries.filter(([,p]) =>  p.is_builtin);
+            if (_nmSearchQuery) {
+                entries = entries.filter(([name, p]) =>
+                    name.toLowerCase().includes(_nmSearchQuery) ||
+                    (p.description||'').toLowerCase().includes(_nmSearchQuery) ||
+                    (p.tone||'').toLowerCase().includes(_nmSearchQuery)
+                );
+            }
+            if (!entries.length) {
+                grid.innerHTML = `<div class="col-12"><div class="empty-state"><i class="fas fa-layer-group"></i><p>No niches found</p></div></div>`;
+                return;
+            }
+            grid.innerHTML = entries.map(([name, p]) => {
+                const isBuiltin = p.is_builtin !== false;
+                const cls = isBuiltin ? 'builtin' : 'custom';
+                const emoji = p.emoji || '✨';
+                const tags = (p.sub_topics||[]).slice(0,4).map(t => `<span class="nm-subtopic-tag">${esc(t)}</span>`).join('');
+                const editBtns = !isBuiltin ? `
+                    <button class="btn-ghost btn-sm" onclick="nmEditNiche('${esc(name)}')" title="Edit"><i class="fas fa-pen"></i></button>
+                    <button class="btn-ghost btn-sm" style="color:var(--red,#f56060);" onclick="nmDeleteNiche('${esc(name)}')" title="Delete"><i class="fas fa-trash"></i></button>` : '';
+                return `
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                  <div class="nm-card ${cls}">
+                    <div style="display:flex;align-items:flex-start;gap:10px;">
+                      <span class="nm-emoji">${emoji}</span>
+                      <div style="flex:1;min-width:0;">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                          <span class="nm-name">${esc(name)}</span>
+                          <span class="nm-badge ${cls}">${isBuiltin?'Built-in':'Custom'}</span>
+                          ${p.assigned_template ? `<span style="font-size:10px;color:var(--muted);background:var(--bg-input);padding:1px 7px;border-radius:99px;border:1px solid var(--border);">📋 ${esc(p.assigned_template)}</span>` : ''}
+                        </div>
+                        <div class="nm-desc">${esc(p.description||'')}</div>
+                      </div>
+                    </div>
+                    ${p.image_style ? `<div class="nm-style-preview" title="${esc(p.image_style)}"><span style="color:var(--muted);margin-right:4px;">🖼</span>${esc(p.image_style)}</div>` : ''}
+                    ${p.video_style ? `<div class="nm-style-preview" title="${esc(p.video_style)}"><span style="color:var(--muted);margin-right:4px;">🎬</span>${esc(p.video_style)}</div>` : ''}
+                    ${tags ? `<div class="nm-subtopics">${tags}</div>` : ''}
+                    <div class="nm-actions">
+                      ${editBtns}
+                      <button class="btn-ghost btn-sm" onclick="nmUseInNicheHub('${esc(name)}')" title="Use in Niche Hub" style="margin-left:auto;"><i class="fas fa-rocket"></i> Use in Hub</button>
+                    </div>
+                  </div>
+                </div>`;
+            }).join('');
+        }
+
+        function nmShowCreate() {
+            document.getElementById('nicheModalTitle').textContent = 'New Custom Niche';
+            document.getElementById('nmEditingName').value = '';
+            ['nmName','nmEmoji','nmDesc','nmImageStyle','nmVideoStyle','nmTone','nmAudience','nmOutputFolder'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            document.getElementById('nmEmoji').value = '✨';
+            document.getElementById('nmSubTopicsList').innerHTML = '';
+            document.getElementById('nmSubTopicInput').value = '';
+            document.getElementById('nmTemplate').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('nicheModal'));
+            modal.show();
+        }
+
+        function nmEditNiche(name) {
+            const p = _nmAllNiches[name];
+            if (!p || p.is_builtin) return toast('Built-in niches cannot be edited', 'error');
+            document.getElementById('nicheModalTitle').textContent = `Edit: ${name}`;
+            document.getElementById('nmEditingName').value = name;
+            document.getElementById('nmName').value = name;
+            document.getElementById('nmEmoji').value = p.emoji || '✨';
+            document.getElementById('nmDesc').value = p.description || '';
+            document.getElementById('nmImageStyle').value = p.image_style || '';
+            document.getElementById('nmVideoStyle').value = p.video_style || '';
+            document.getElementById('nmTone').value = p.tone || '';
+            document.getElementById('nmAudience').value = p.target_audience || '';
+            document.getElementById('nmOutputFolder').value = p.output_folder || '';
+            document.getElementById('nmTemplate').value = p.assigned_template || '';
+            // render sub-topics
+            const list = document.getElementById('nmSubTopicsList');
+            list.innerHTML = (p.sub_topics||[]).map(t => nmTagHtml(t)).join('');
+            document.getElementById('nmSubTopicInput').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('nicheModal'));
+            modal.show();
+        }
+
+        async function nmDeleteNiche(name) {
+            if (!confirm(`Delete niche "${name}"? This cannot be undone.`)) return;
+            const d = await api(`/api/niches/${encodeURIComponent(name)}`, { method: 'DELETE' });
+            toast(d.message || (d.success ? 'Deleted' : 'Error'), d.success ? 'success' : 'error');
+            if (d.success) {
+                nichePresets = {};
+                if (window._initCache) delete window._initCache.all_niches;
+                await loadNicheManager();
+            }
+        }
+
+        async function nmSaveNiche() {
+            const editingName = document.getElementById('nmEditingName').value;
+            const name = document.getElementById('nmName').value.trim();
+            if (!name) return toast('Niche name is required', 'error');
+            // collect sub-topics from rendered tags
+            const subTopics = Array.from(document.getElementById('nmSubTopicsList').querySelectorAll('.st-tag'))
+                .map(el => el.dataset.value || el.childNodes[0]?.textContent?.trim() || '').filter(Boolean);
+            const payload = {
+                name,
+                emoji: document.getElementById('nmEmoji').value.trim() || '✨',
+                description: document.getElementById('nmDesc').value.trim(),
+                image_style: document.getElementById('nmImageStyle').value.trim(),
+                video_style: document.getElementById('nmVideoStyle').value.trim(),
+                tone: document.getElementById('nmTone').value.trim(),
+                target_audience: document.getElementById('nmAudience').value.trim(),
+                sub_topics: subTopics,
+                assigned_template: document.getElementById('nmTemplate').value,
+                output_folder: document.getElementById('nmOutputFolder').value.trim(),
+            };
+            let d;
+            if (editingName) {
+                d = await api(`/api/niches/${encodeURIComponent(editingName)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+            } else {
+                d = await api('/api/niches', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+            }
+            toast(d.message || (d.success ? 'Saved' : 'Error'), d.success ? 'success' : 'error');
+            if (d.success) {
+                bootstrap.Modal.getInstance(document.getElementById('nicheModal'))?.hide();
+                nichePresets = {};
+                if (window._initCache) delete window._initCache.all_niches;
+                refreshNicheDropdowns();
+                await loadNicheManager();
+            }
+        }
+
+        function nmTagHtml(value) {
+            const safe = esc(value);
+            return `<span class="st-tag" data-value="${safe}">${safe}<button type="button" onclick="this.parentElement.remove()" title="Remove">×</button></span>`;
+        }
+
+        function nmAddSubTopic() {
+            const input = document.getElementById('nmSubTopicInput');
+            const val = input.value.trim();
+            if (!val) return;
+            document.getElementById('nmSubTopicsList').insertAdjacentHTML('beforeend', nmTagHtml(val));
+            input.value = '';
+            input.focus();
+        }
+
+        function nmUseInNicheHub(name) {
+            navigateTo('niche');
+            // After navigating, pre-select the niche in the hub (short delay for page paint)
+            setTimeout(() => {
+                document.getElementById('nicheInput').value = name;
+                const p = _nmAllNiches[name] || {};
+                if (p.image_style) document.getElementById('nicheImageStyle').value = p.image_style;
+                if (p.video_style) document.getElementById('nicheVideoStyle').value = p.video_style;
+                // highlight the card if rendered
+                document.querySelectorAll('.niche-preset-card').forEach(c => {
+                    c.classList.toggle('selected', c.dataset.name === name);
+                });
+                toast(`"${name}" loaded in the Niche Hub`, 'info');
+            }, 200);
+        }
+
+        // Populate the genNiche dropdown with all niches
+        function refreshNicheDropdowns(allNiches) {
+            const src = allNiches || _nmAllNiches || {};
+            const sel = document.getElementById('genNiche');
+            if (!sel) return;
+            const current = sel.value;
+            // keep first option
+            const first = sel.querySelector('option:first-child');
+            sel.innerHTML = '';
+            sel.appendChild(first || Object.assign(document.createElement('option'), { value: '', textContent: 'None (flat output)' }));
+            Object.entries(src).forEach(([name, p]) => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = (p.emoji ? p.emoji + ' ' : '') + name + (p.is_builtin === false ? ' ★' : '');
+                if (name === current) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        // When a niche is selected in Genereate page, auto-fill styles if blank
+        function onGenNicheChange() {
+            const sel = document.getElementById('genNiche');
+            const name = sel.value;
+            if (!name) return;
+            const src = window._initCache?.all_niches || _nmAllNiches || {};
+            const p = src[name];
+            if (!p) return;
+            const imgEl = document.getElementById('genImageStyle');
+            const vidEl = document.getElementById('genVideoStyle');
+            if (!imgEl.value.trim() && p.image_style) imgEl.value = p.image_style;
+            if (!vidEl.value.trim() && p.video_style) vidEl.value = p.video_style;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // NICHE HUB PAGE
         // ═══════════════════════════════════════════════════════════════════
         let nichePresets = {};
@@ -2542,12 +2954,14 @@
         async function loadNichePresets() {
             if (Object.keys(nichePresets).length > 0) return; // already loaded
             let presetsData;
-            if (window._initCache && window._initCache.niche_presets) {
+            if (window._initCache && window._initCache.all_niches) {
+                presetsData = window._initCache.all_niches;
+            } else if (window._initCache && window._initCache.niche_presets) {
                 presetsData = window._initCache.niche_presets;
             } else {
-                const d = await api('/api/niche/presets');
+                const d = await api('/api/niches');
                 if (!d.success) return;
-                presetsData = d.presets;
+                presetsData = d.niches;
             }
             nichePresets = presetsData;
             const grid = document.getElementById('nichePresetGrid');
@@ -2557,14 +2971,19 @@
                 'Health':'💪','History':'📜','Science':'🔬','Philosophy':'💡'
             };
         grid.innerHTML = Object.entries(nichePresets).map(([name, p]) => {
-                const emoji = emojiMap[name] || '✨';
+                const emoji = p.emoji || emojiMap[name] || '✨';
+                const isCustom = p.is_builtin === false;
+                const badgeHtml = isCustom
+                    ? `<span style="position:absolute;top:7px;right:7px;font-size:9px;background:rgba(61,214,140,.15);color:var(--green);padding:1px 6px;border-radius:99px;font-weight:700;">Custom</span>`
+                    : '';
                 return `
                 <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 col-6 mb-1">
-                    <div class="niche-preset-card" data-name="${esc(name)}" title="${esc(p.description)}">
+                    <div class="niche-preset-card${isCustom ? ' is-custom' : ''}" data-name="${esc(name)}" title="${esc(p.description||'')}">
                         <div class="niche-selected-check"><i class="fas fa-check"></i></div>
+                        ${badgeHtml}
                         <span class="niche-preset-emoji">${emoji}</span>
                         <div class="niche-preset-name">${esc(name)}</div>
-                        <div class="niche-preset-desc">${esc(p.description).length > 60 ? esc(p.description).substring(0, 60) + '…' : esc(p.description)}</div>
+                        <div class="niche-preset-desc">${esc(p.description||'').length > 60 ? esc(p.description||'').substring(0, 60) + '…' : esc(p.description||'')}</div>
                     </div>
                 </div>`;
             }).join('');
@@ -3275,6 +3694,10 @@
                 if (d.success) {
                     window._initCache = d;
                     refreshTemplateDropdowns(d.templates);
+                    if (d.all_niches) {
+                        _nmAllNiches = d.all_niches;
+                        refreshNicheDropdowns(d.all_niches);
+                    }
                 } else {
                     refreshTemplateDropdowns();
                 }
