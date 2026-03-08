@@ -1,1 +1,35 @@
-{}
+{
+    "moral stoires": {
+        "name": "moral stoires",
+        "structure": {
+            "Voice_Over": {
+                "files": [
+                    "voiceover_script"
+                ],
+                "file_contents": {
+                    "voiceover_script": ""
+                }
+            },
+            "Images": {
+                "files": [
+                    "hook_images",
+                    "actual_images"
+                ],
+                "file_contents": {
+                    "hook_images": "",
+                    "actual_images": ""
+                }
+            },
+            "Videos": {
+                "files": [
+                    "hook_video",
+                    "actual_video"
+                ],
+                "file_contents": {
+                    "hook_video": "",
+                    "actual_video": ""
+                }
+            }
+        }
+    }
+}

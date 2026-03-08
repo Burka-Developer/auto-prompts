@@ -905,9 +905,15 @@
             </div>
         </div>
 
-        <div class="sidebar-footer">
-            <i class="fas fa-circle" style="font-size:8px;"></i>
-            <span>Gemini 2.5 Flash · Ready</span>
+        <div class="sidebar-footer" style="padding:12px 16px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <i class="fas fa-circle" style="font-size:8px;" id="providerStatusDot"></i>
+                <span id="providerStatusText">Loading…</span>
+            </div>
+            <select class="form-select-dark" id="providerSelect" onchange="switchProvider(this.value)" style="font-size:12px;padding:5px 8px;background:var(--bg-input);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);width:100%;">
+                <option value="gemini">Gemini 2.5 Flash</option>
+                <option value="claude">Claude Haiku 4.5</option>
+            </select>
         </div>
     </div>
 
@@ -915,7 +921,7 @@
     <div class="spinner-overlay" id="spinner">
         <div class="spinner-card">
             <div class="spinner-ring"></div>
-            <div class="spinner-text">Generating with Gemini...</div>
+            <div class="spinner-text" id="spinnerText">Generating…</div>
             <div class="spinner-sub" id="spinnerSub">This may take a moment</div>
         </div>
     </div>
@@ -1887,6 +1893,7 @@
                 description: document.getElementById('genDesc').value,
                 transcript: document.getElementById('genTranscript').value,
                 template: document.getElementById('genTemplate').value,
+                provider: currentProvider,
                 include_dialogue: document.getElementById('chkDialogue').checked,
                 gen_image_prompts: document.getElementById('chkImages').checked,
                 gen_video_prompts: document.getElementById('chkVideos').checked,
@@ -1898,7 +1905,7 @@
                 video_style: document.getElementById('genVideoStyle').value.trim(),
             };
 
-            document.getElementById('spinner').classList.add('show');
+            showSpinner();
             document.getElementById('btnGenerate').disabled = true;
 
             try {
@@ -2408,6 +2415,7 @@
         async function bulkStartJob() {
             if (!bulkItems.length) return toast('No items loaded', 'error');
             const opts = {
+                provider: currentProvider,
                 include_dialogue: document.getElementById('bulkChkDialogue').checked,
                 gen_image_prompts: document.getElementById('bulkChkImages').checked,
                 gen_video_prompts: document.getElementById('bulkChkVideos').checked,
@@ -2591,14 +2599,14 @@
             const subTopic = document.getElementById('nicheSubTopic').value.trim();
 
             document.getElementById('spinner').classList.add('show');
-            document.getElementById('spinnerSub').textContent = 'Generating viral titles with Gemini…';
+            document.getElementById('spinnerSub').textContent = 'Generating viral titles with ' + getProviderLabel() + '…';
             document.getElementById('btnNicheTitles').disabled = true;
 
             try {
                 const d = await api('/api/niche/generate-titles', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ niche, sub_topic: subTopic, num_titles: count }),
+                    body: JSON.stringify({ niche, sub_topic: subTopic, num_titles: count, provider: currentProvider }),
                 });
                 if (d.success) {
                     nicheTitles = d.titles;
@@ -2708,6 +2716,7 @@
             }));
 
             const options = {
+                provider: currentProvider,
                 include_dialogue: document.getElementById('nicheChkDialogue').checked,
                 gen_image_prompts: document.getElementById('nicheChkImages').checked,
                 gen_video_prompts: document.getElementById('nicheChkVideos').checked,
@@ -3087,6 +3096,7 @@
                         total_concepts:      concepts,
                         variations:          variations,
                         custom_instructions: customInstr,
+                        provider:            currentProvider,
                     }),
                 });
                 if (!d.success) throw new Error(d.message || 'Failed to start job');
@@ -3267,6 +3277,61 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // Provider Management
+        // ═══════════════════════════════════════════════════════════════════
+        let currentProvider = 'gemini';
+        const providerModels = { gemini: 'Gemini 2.5 Flash', claude: 'Claude Haiku 4.5' };
+
+        function getProviderLabel() {
+            return providerModels[currentProvider] || currentProvider;
+        }
+
+        function updateProviderUI(provider, available) {
+            currentProvider = provider;
+            const sel = document.getElementById('providerSelect');
+            if (sel) sel.value = provider;
+
+            // Disable unavailable options
+            if (available) {
+                sel.querySelectorAll('option').forEach(opt => {
+                    opt.disabled = !available[opt.value];
+                });
+            }
+
+            const dot = document.getElementById('providerStatusDot');
+            const txt = document.getElementById('providerStatusText');
+            if (dot) dot.style.color = provider === 'claude' ? '#b48bff' : 'var(--green)';
+            if (txt) txt.textContent = getProviderLabel() + ' · Ready';
+        }
+
+        async function switchProvider(provider) {
+            try {
+                const d = await api('/api/provider', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider }),
+                });
+                if (d.success) {
+                    currentProvider = d.provider;
+                    updateProviderUI(d.provider);
+                    toast(`Switched to ${getProviderLabel()}`, 'success');
+                } else {
+                    toast(d.message || 'Failed to switch provider', 'error');
+                    document.getElementById('providerSelect').value = currentProvider;
+                }
+            } catch(e) {
+                toast('Error switching provider: ' + e.message, 'error');
+                document.getElementById('providerSelect').value = currentProvider;
+            }
+        }
+
+        function showSpinner(msg) {
+            const el = document.getElementById('spinnerText');
+            if (el) el.textContent = msg || ('Generating with ' + getProviderLabel() + '…');
+            document.getElementById('spinner').classList.add('show');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // Init — single /api/init round-trip pre-fetches all static data
         // ═══════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async () => {
@@ -3275,6 +3340,7 @@
                 if (d.success) {
                     window._initCache = d;
                     refreshTemplateDropdowns(d.templates);
+                    if (d.provider) updateProviderUI(d.provider, d.available_providers);
                 } else {
                     refreshTemplateDropdowns();
                 }

@@ -27,6 +27,7 @@ from flask import Flask, jsonify, render_template, request, send_file, Response,
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
 from google import genai
+import anthropic
 from pydantic import BaseModel, Field
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -49,12 +50,14 @@ UPLOAD_DIR = BASE_DIR / "uploads"
 TEMPLATES_FILE = BASE_DIR / "templates_data.json"
 
 GEMINI_MODEL = "gemini-2.5-flash"
+CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 MAX_RETRIES = 4
 RETRY_DELAY = 8
 RETRY_BACKOFF_MULTIPLIER = 2.0  # exponential backoff: 8s, 16s, 32s, 64s...
 RETRY_MAX_DELAY = 120  # cap at 2 minutes
 BULK_ITEM_DELAY = 5  # seconds between bulk items (base)
 BULK_ITEM_DELAY_AFTER_429 = 30  # seconds after a 429 error
+CLAUDE_BATCH_DELAY = 15  # seconds sleep between Claude batch requests to preserve limits
 BULK_PARALLEL_WORKERS = 3        # concurrent video-generation threads
 ADOBE_PARALLEL_BATCHES = 2       # concurrent Adobe Stock API-call threads
 LOG_DIR = BASE_DIR / "logs"
@@ -91,10 +94,31 @@ def _load_api_keys() -> list[str]:
     return keys
 
 
+def _load_claude_api_keys() -> list[str]:
+    """Load one or more Claude/Anthropic API keys from env vars.
+
+    Supports CLAUDE_API_KEYS (comma/semicolon/newline separated) or
+    CLAUDE_API_KEY (single key).
+    """
+    raw = (os.getenv("CLAUDE_API_KEYS") or os.getenv("CLAUDE_API_KEY") or "").strip()
+    if not raw:
+        return []
+    keys = []
+    for part in re.split(r"[,;\n]+", raw):
+        key = part.strip()
+        if key and key not in keys:
+            keys.append(key)
+    return keys
+
+
 API_KEYS = _load_api_keys()
+CLAUDE_API_KEYS = _load_claude_api_keys()
 _api_key_lock = threading.Lock()
 _api_key_index = 0
+_claude_key_lock = threading.Lock()
+_claude_key_index = 0
 _key_quota_until: dict[str, float] = {}  # key → unix timestamp when its quota cooldown expires
+_claude_key_quota_until: dict[str, float] = {}
 KEY_QUOTA_COOLDOWN = 65                   # seconds before a quota-exceeded key is retried
 
 
@@ -152,6 +176,59 @@ def _secs_until_any_key_available() -> float:
 # Legacy alias kept for any callers
 def _next_api_key() -> str:
     return _get_available_key()
+
+
+# ── Claude Key Management ──────────────────────────────────────────────────
+
+def _count_available_claude_keys() -> int:
+    now = time.time()
+    return sum(1 for k in CLAUDE_API_KEYS if now >= _claude_key_quota_until.get(k, 0))
+
+
+def _mark_claude_key_quota(key: str) -> None:
+    with _claude_key_lock:
+        _claude_key_quota_until[key] = time.time() + KEY_QUOTA_COOLDOWN
+    log.warning(
+        "[CLAUDE-KEYRING] Key %s → QUOTA COOLDOWN %ds | available=%d/%d",
+        _mask_key(key), KEY_QUOTA_COOLDOWN, _count_available_claude_keys(), len(CLAUDE_API_KEYS),
+    )
+
+
+def _get_available_claude_key() -> str:
+    if not CLAUDE_API_KEYS:
+        raise RuntimeError("No Claude API keys configured. Set CLAUDE_API_KEYS or CLAUDE_API_KEY in .env")
+    global _claude_key_index
+    now = time.time()
+    with _claude_key_lock:
+        for i in range(len(CLAUDE_API_KEYS)):
+            idx = (_claude_key_index + i) % len(CLAUDE_API_KEYS)
+            key = CLAUDE_API_KEYS[idx]
+            if now >= _claude_key_quota_until.get(key, 0):
+                _claude_key_index = (idx + 1) % len(CLAUDE_API_KEYS)
+                return key
+        best_idx = min(range(len(CLAUDE_API_KEYS)), key=lambda i: _claude_key_quota_until.get(CLAUDE_API_KEYS[i], 0))
+        _claude_key_index = (best_idx + 1) % len(CLAUDE_API_KEYS)
+        return CLAUDE_API_KEYS[best_idx]
+
+
+def _secs_until_any_claude_key_available() -> float:
+    if not CLAUDE_API_KEYS:
+        return 0.0
+    now = time.time()
+    if any(now >= _claude_key_quota_until.get(k, 0) for k in CLAUDE_API_KEYS):
+        return 0.0
+    return max(0.0, min(_claude_key_quota_until.get(k, 0) for k in CLAUDE_API_KEYS) - now)
+
+
+def _is_claude_quota_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return bool(
+        "rate_limit" in text
+        or "rate limit" in text
+        or "overloaded" in text
+        or "429" in text
+        or "too many requests" in text
+    )
 
 
 def _is_quota_error(exc: Exception) -> bool:
@@ -925,7 +1002,7 @@ def _call_gemini(prompt: str) -> GenerationResult:
                         "response_schema": GenerationResult,
                         "temperature": 0.75,
                         "top_p": 0.95,
-                        "max_output_tokens": 65536,
+                        "max_output_tokens": 48192,
                     },
                 )
                 api_latency = round(time.time() - t_call, 1)
@@ -974,6 +1051,261 @@ def _call_gemini(prompt: str) -> GenerationResult:
     if last_error:
         raise last_error
     raise RuntimeError("Gemini generation failed without a captured error.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Claude API Callers
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _build_claude_json_system_prompt(schema_class) -> str:
+    """Build a system prompt instructing Claude to return JSON matching a Pydantic schema."""
+    schema_json = json.dumps(schema_class.model_json_schema(), indent=2)
+    return (
+        "You are a precise JSON generator. You MUST respond with ONLY valid JSON — "
+        "no markdown fences, no commentary, no explanation. "
+        "Your response must conform exactly to this JSON schema:\n\n"
+        f"{schema_json}\n\n"
+        "Return ONLY the JSON object."
+    )
+
+
+def _call_claude(prompt: str) -> GenerationResult:
+    """Call Claude with smart per-key quota tracking and automatic key failover."""
+    if not CLAUDE_API_KEYS:
+        raise RuntimeError("No Claude API keys configured. Set CLAUDE_API_KEYS or CLAUDE_API_KEY in .env")
+
+    system_prompt = _build_claude_json_system_prompt(GenerationResult)
+    last_error: Exception | None = None
+
+    for cycle in range(MAX_RETRIES):
+        for key_slot in range(len(CLAUDE_API_KEYS)):
+            wait_secs = _secs_until_any_claude_key_available()
+            if wait_secs > 0:
+                log.info("[CLAUDE-GEN] All %d keys in quota cooldown — waiting %.0fs", len(CLAUDE_API_KEYS), wait_secs)
+                time.sleep(min(wait_secs + 1, RETRY_MAX_DELAY))
+
+            api_key = _get_available_claude_key()
+            attempt_label = f"claude_c{cycle + 1}_s{key_slot + 1}_{_mask_key(api_key)}"
+
+            try:
+                log.info(
+                    "[CLAUDE-GEN] Calling %s | key=%s | cycle %d/%d | keys_ok=%d/%d",
+                    CLAUDE_MODEL, _mask_key(api_key),
+                    cycle + 1, MAX_RETRIES,
+                    _count_available_claude_keys(), len(CLAUDE_API_KEYS),
+                )
+
+                t_call = time.time()
+                client = anthropic.Anthropic(api_key=api_key)
+                with client.messages.stream(
+                    model=CLAUDE_MODEL,
+                    max_tokens=48192,
+                    temperature=0.75,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": prompt}],
+                ) as stream:
+                    raw_text = stream.get_final_text()
+                api_latency = round(time.time() - t_call, 1)
+                log.debug("[CLAUDE-GEN] Raw response: %d chars in %.1fs", len(raw_text), api_latency)
+
+                if not raw_text.strip():
+                    raise ValueError("Claude returned empty response")
+
+                result = _validate_with_fallback(raw_text, attempt_label)
+                log.info(
+                    "[CLAUDE-GEN] SUCCESS — %d scenes | key=%s | cycle %d | latency=%.1fs",
+                    len(result.scenes), _mask_key(api_key), cycle + 1, api_latency,
+                )
+                return result
+
+            except Exception as exc:
+                last_error = exc
+                quota_hit = _is_claude_quota_error(exc)
+                is_validation = "validation" in str(exc).lower() or "json" in str(exc).lower()
+                error_type = "QUOTA/429" if quota_hit else ("VALIDATION" if is_validation else "ERROR")
+
+                log.warning("[CLAUDE-GEN] FAILED | key=%s | type=%s | error=%s",
+                            _mask_key(api_key), error_type, str(exc)[:300])
+
+                if quota_hit:
+                    _mark_claude_key_quota(api_key)
+                    continue
+                else:
+                    time.sleep(RETRY_DELAY)
+                    continue
+
+        if cycle < MAX_RETRIES - 1:
+            log.info("[CLAUDE-GEN] Cycle %d/%d complete — pausing %ds", cycle + 1, MAX_RETRIES, RETRY_DELAY)
+            time.sleep(RETRY_DELAY)
+
+    log.error("[CLAUDE-GEN] ALL %d CYCLES EXHAUSTED. Last error: %s", MAX_RETRIES, str(last_error)[:500])
+    if last_error:
+        raise last_error
+    raise RuntimeError("Claude generation failed without a captured error.")
+
+
+def _call_claude_titles(prompt: str) -> NicheTitleResult:
+    """Call Claude for viral title generation with key failover."""
+    if not CLAUDE_API_KEYS:
+        raise RuntimeError("No Claude API keys configured.")
+
+    system_prompt = _build_claude_json_system_prompt(NicheTitleResult)
+    last_error: Exception | None = None
+
+    for cycle in range(MAX_RETRIES):
+        for key_slot in range(len(CLAUDE_API_KEYS)):
+            wait_secs = _secs_until_any_claude_key_available()
+            if wait_secs > 0:
+                log.info("[CLAUDE-TITLES] All keys cooling — waiting %.0fs", wait_secs)
+                time.sleep(min(wait_secs + 1, RETRY_MAX_DELAY))
+
+            api_key = _get_available_claude_key()
+            try:
+                log.info("[CLAUDE-TITLES] Calling %s | key=%s | cycle %d/%d",
+                         CLAUDE_MODEL, _mask_key(api_key), cycle + 1, MAX_RETRIES)
+                client = anthropic.Anthropic(api_key=api_key)
+                with client.messages.stream(
+                    model=CLAUDE_MODEL,
+                    max_tokens=8192,
+                    temperature=0.92,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": prompt}],
+                ) as stream:
+                    raw_text = stream.get_final_text()
+                if not raw_text.strip():
+                    raise ValueError("Claude returned empty response for titles")
+
+                try:
+                    result = NicheTitleResult.model_validate_json(raw_text)
+                except Exception:
+                    repaired = _repair_json(raw_text)
+                    try:
+                        result = NicheTitleResult.model_validate_json(repaired)
+                    except Exception:
+                        data = json.loads(repaired)
+                        result = NicheTitleResult.model_validate(data)
+
+                log.info("[CLAUDE-TITLES] SUCCESS — %d titles | key=%s", len(result.titles), _mask_key(api_key))
+                return result
+
+            except Exception as exc:
+                last_error = exc
+                if _is_claude_quota_error(exc):
+                    _mark_claude_key_quota(api_key)
+                    continue
+                else:
+                    time.sleep(RETRY_DELAY)
+                    continue
+
+        if cycle < MAX_RETRIES - 1:
+            time.sleep(RETRY_DELAY)
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Claude title generation failed.")
+
+
+def _call_claude_adobe_stock(prompt: str) -> AdobeStockBatchResult:
+    """Call Claude for Adobe Stock batch generation with key failover."""
+    if not CLAUDE_API_KEYS:
+        raise RuntimeError("No Claude API keys configured.")
+
+    system_prompt = _build_claude_json_system_prompt(AdobeStockBatchResult)
+    last_error: Exception | None = None
+
+    for cycle in range(MAX_RETRIES):
+        for _slot in range(len(CLAUDE_API_KEYS)):
+            wait_secs = _secs_until_any_claude_key_available()
+            if wait_secs > 0:
+                log.info("[CLAUDE-ADOBE] All keys cooling — waiting %.0fs", wait_secs)
+                time.sleep(min(wait_secs + 1, RETRY_MAX_DELAY))
+
+            api_key = _get_available_claude_key()
+            try:
+                log.info("[CLAUDE-ADOBE] Calling %s | key=%s | cycle %d/%d",
+                         CLAUDE_MODEL, _mask_key(api_key), cycle + 1, MAX_RETRIES)
+                client = anthropic.Anthropic(api_key=api_key)
+                with client.messages.stream(
+                    model=CLAUDE_MODEL,
+                    max_tokens=48192,
+                    temperature=0.78,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": prompt}],
+                ) as stream:
+                    raw_text = stream.get_final_text()
+                if not raw_text.strip():
+                    raise ValueError("Claude returned empty response for Adobe Stock batch")
+
+                try:
+                    result = AdobeStockBatchResult.model_validate_json(raw_text)
+                except Exception:
+                    repaired = _repair_json(raw_text)
+                    try:
+                        result = AdobeStockBatchResult.model_validate_json(repaired)
+                    except Exception:
+                        data = json.loads(repaired)
+                        result = AdobeStockBatchResult.model_validate(data)
+
+                log.info("[CLAUDE-ADOBE] SUCCESS — %d images | key=%s", len(result.images), _mask_key(api_key))
+                return result
+
+            except Exception as exc:
+                last_error = exc
+                if _is_claude_quota_error(exc):
+                    _mark_claude_key_quota(api_key)
+                    continue
+                else:
+                    time.sleep(RETRY_DELAY)
+                    continue
+
+        if cycle < MAX_RETRIES - 1:
+            time.sleep(RETRY_DELAY)
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Claude Adobe Stock generation failed.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Provider Dispatcher — routes to Gemini or Claude
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Auto-detect default provider based on available keys
+_active_provider = "claude" if (not API_KEYS and CLAUDE_API_KEYS) else "gemini"
+_provider_lock = threading.Lock()
+
+
+def _get_provider() -> str:
+    with _provider_lock:
+        return _active_provider
+
+
+def _set_provider(provider: str) -> None:
+    global _active_provider
+    with _provider_lock:
+        _active_provider = provider.lower() if provider else "gemini"
+
+
+def _dispatch_generate(prompt: str, provider: str = None) -> GenerationResult:
+    """Route to Gemini or Claude based on provider."""
+    p = (provider or _get_provider()).lower()
+    if p == "claude":
+        return _call_claude(prompt)
+    return _call_gemini(prompt)
+
+
+def _dispatch_titles(prompt: str, provider: str = None) -> NicheTitleResult:
+    p = (provider or _get_provider()).lower()
+    if p == "claude":
+        return _call_claude_titles(prompt)
+    return _call_gemini_titles(prompt)
+
+
+def _dispatch_adobe_stock(prompt: str, provider: str = None) -> AdobeStockBatchResult:
+    p = (provider or _get_provider()).lower()
+    if p == "claude":
+        return _call_claude_adobe_stock(prompt)
+    return _call_gemini_adobe_stock(prompt)
 
 
 def _extract_template_instructions(template_name: Optional[str]) -> str:
@@ -1127,19 +1459,60 @@ def favicon():
 
 @app.route("/api/init", methods=["GET"])
 def api_init():
-    """Combined init endpoint — returns templates, niche presets, and Adobe Stock niches
-    in a single HTTP round-trip, eliminating three sequential page-load calls."""
+    """Combined init endpoint — returns templates, niche presets, Adobe Stock niches,
+    and provider info in a single HTTP round-trip."""
     return jsonify({
         "success": True,
         "templates": _load_templates(),
         "niche_presets": NICHE_PRESETS,
         "adobe_stock_niches": ADOBE_STOCK_NICHES,
+        "provider": _get_provider(),
+        "available_providers": {
+            "gemini": len(API_KEYS) > 0,
+            "claude": len(CLAUDE_API_KEYS) > 0,
+        },
+        "provider_models": {
+            "gemini": GEMINI_MODEL,
+            "claude": CLAUDE_MODEL,
+        },
     })
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Flask Routes — Generation API
 # ═══════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/provider", methods=["GET"])
+def api_get_provider():
+    """Return current provider and available providers."""
+    return jsonify({
+        "success": True,
+        "provider": _get_provider(),
+        "available": {
+            "gemini": len(API_KEYS) > 0,
+            "claude": len(CLAUDE_API_KEYS) > 0,
+        },
+        "gemini_keys": len(API_KEYS),
+        "claude_keys": len(CLAUDE_API_KEYS),
+    })
+
+
+@app.route("/api/provider", methods=["POST"])
+def api_set_provider():
+    """Set the active AI provider (gemini or claude)."""
+    data = request.json or {}
+    provider = (data.get("provider") or "").strip().lower()
+    if provider not in ("gemini", "claude"):
+        return jsonify({"success": False, "message": "Provider must be 'gemini' or 'claude'."})
+    if provider == "gemini" and not API_KEYS:
+        return jsonify({"success": False, "message": "No Gemini API keys configured in .env"})
+    if provider == "claude" and not CLAUDE_API_KEYS:
+        return jsonify({"success": False, "message": "No Claude API keys configured in .env"})
+    _set_provider(provider)
+    model = CLAUDE_MODEL if provider == "claude" else GEMINI_MODEL
+    log.info("[PROVIDER] Switched to %s (%s)", provider.upper(), model)
+    return jsonify({"success": True, "provider": provider, "model": model})
+
 
 @app.route("/api/generate", methods=["POST"])
 def api_generate():
@@ -1153,6 +1526,7 @@ def api_generate():
         description = (data.get("description") or "").strip()
         transcript = (data.get("transcript") or "").strip()
         template_name = (data.get("template") or "").strip() or None
+        provider = (data.get("provider") or "").strip() or None
         include_dialogue = bool(data.get("include_dialogue", False))
         gen_image_prompts = bool(data.get("gen_image_prompts", True))
         gen_video_prompts = bool(data.get("gen_video_prompts", True))
@@ -1183,7 +1557,7 @@ def api_generate():
             video_style=video_style,
         )
 
-        result = _call_gemini(prompt)
+        result = _dispatch_generate(prompt, provider=provider)
 
         output = _write_outputs(
             result=result,
@@ -1539,7 +1913,7 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
 
         log.debug("[BULK %s] Prompt length: %d chars for '%s'", job_id, len(prompt), title)
 
-        result = _call_gemini(prompt)
+        result = _dispatch_generate(prompt, provider=options.get("provider"))
 
         output = _write_outputs(
             result=result,
@@ -1589,6 +1963,11 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
                 job["failed_count"] = job.get("failed_count", 0) + 1
                 job["progress"] = (job.get("completed_count", 0) + job["failed_count"]) / total * 100
 
+    provider_used = options.get("provider", _get_provider()).lower()
+    if provider_used == "claude" and idx < total - 1:
+        log.info("[BULK %s] Item done. Pausing %ds for Claude limit before next run.", job_id, CLAUDE_BATCH_DELAY)
+        time.sleep(CLAUDE_BATCH_DELAY)
+
 
 def _process_bulk_job(job_id: str):
     """Orchestrates parallel bulk generation using a thread pool."""
@@ -1600,10 +1979,15 @@ def _process_bulk_job(job_id: str):
     items = job["items"]
     total = len(items)
     options = job["options"]
+    provider = options.get("provider", _get_provider()).lower()
+    
+    # Restrict to 1 worker if using Claude to prevent quota exhaustion
+    parallel_workers = 1 if provider == "claude" else BULK_PARALLEL_WORKERS
 
-    log.info("[BULK %s] Starting parallel processing — %d items | workers=%d", job_id, total, BULK_PARALLEL_WORKERS)
+    log.info("[BULK %s] Starting parallel processing — %d items | workers=%d | provider=%s", 
+             job_id, total, parallel_workers, provider)
 
-    with ThreadPoolExecutor(max_workers=BULK_PARALLEL_WORKERS) as executor:
+    with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
         futures = []
         for idx, item in enumerate(items):
             # Stop submitting new tasks if cancelled
@@ -2196,7 +2580,7 @@ def niche_presets_route():
 
 @app.route("/api/niche/generate-titles", methods=["POST"])
 def niche_generate_titles():
-    """Generate viral title ideas for a niche using Gemini."""
+    """Generate viral title ideas using selected AI provider."""
     try:
         data = request.json or {}
         niche = (data.get("niche") or "").strip()
@@ -2205,9 +2589,10 @@ def niche_generate_titles():
 
         sub_topic = (data.get("sub_topic") or "").strip()
         num_titles = max(5, min(30, int(data.get("num_titles") or 15)))
+        provider = (data.get("provider") or "").strip() or None
 
         prompt = _build_title_prompt(niche, sub_topic, num_titles)
-        result = _call_gemini_titles(prompt)
+        result = _dispatch_titles(prompt, provider=provider)
 
         return jsonify({
             "success": True,
@@ -2473,7 +2858,7 @@ def _call_gemini_adobe_stock(prompt: str) -> AdobeStockBatchResult:
                         "response_schema": AdobeStockBatchResult,
                         "temperature": 0.78,
                         "top_p": 0.95,
-                        "max_output_tokens": 65536,
+                        "max_output_tokens": 48192,
                     },
                 )
                 raw_text = resp.text or ""
@@ -2709,7 +3094,7 @@ def _process_adobe_stock_job(job_id: str) -> None:
                 include_analysis=is_first,
                 custom_instructions=custom_instructions,
             )
-            result = _call_gemini_adobe_stock(prompt)
+            result = _dispatch_adobe_stock(prompt, provider=job.get("provider"))
 
             if is_first:
                 first_batch_analysis = result.niche_analysis or ""
@@ -2764,7 +3149,12 @@ def _process_adobe_stock_job(job_id: str) -> None:
                 })
 
         if batch_idx < total_batches - 1:
-            time.sleep(BULK_ITEM_DELAY)
+            provider_used = job.get("provider", _get_provider()).lower()
+            if provider_used == "claude":
+                log.info("[ADOBE %s] Batch done. Pausing %ds for Claude limit...", job_id, CLAUDE_BATCH_DELAY)
+                time.sleep(CLAUDE_BATCH_DELAY)
+            else:
+                time.sleep(BULK_ITEM_DELAY)
 
     # Write summary if never written (all batches failed)
     if not summary_written:
@@ -2804,6 +3194,7 @@ def adobe_stock_start():
         total_concepts = max(1, min(100, int(data.get("total_concepts") or 10)))
         variations = max(1, min(15, int(data.get("variations") or 5)))
         custom_instructions = (data.get("custom_instructions") or "").strip()
+        provider = (data.get("provider") or "").strip() or None
 
         job_id = str(uuid.uuid4())[:8]
         batch_name = _sanitize(f"{niche}{(' - ' + sub_niche) if sub_niche else ''}")
@@ -2827,6 +3218,7 @@ def adobe_stock_start():
             "progress": 0.0,
             "output_dir": str(output_dir),
             "custom_instructions": custom_instructions,
+            "provider": provider,
             "batch_log": [],
             "created_at": datetime.now().isoformat(),
             "completed_at": None,
