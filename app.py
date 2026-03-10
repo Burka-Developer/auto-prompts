@@ -48,6 +48,7 @@ BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "output"
 UPLOAD_DIR = BASE_DIR / "uploads"
 TEMPLATES_FILE = BASE_DIR / "templates_data.json"
+NICHES_FILE   = BASE_DIR / "niches_data.json"
 
 GEMINI_MODEL = "gemini-2.5-flash"
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
@@ -58,8 +59,10 @@ RETRY_MAX_DELAY = 120  # cap at 2 minutes
 BULK_ITEM_DELAY = 5  # seconds between bulk items (base)
 BULK_ITEM_DELAY_AFTER_429 = 30  # seconds after a 429 error
 CLAUDE_BATCH_DELAY = 15  # seconds sleep between Claude batch requests to preserve limits
-BULK_PARALLEL_WORKERS = 3        # concurrent video-generation threads
+GEMINI_PARALLEL_WORKERS = 10     # Gemini has generous rate limits — 10 parallel workers
+CLAUDE_PARALLEL_WORKERS = 1      # Claude is rate-limited — 1 at a time to avoid exhaustion
 ADOBE_PARALLEL_BATCHES = 2       # concurrent Adobe Stock API-call threads
+ENV_FILE = BASE_DIR / ".env"
 LOG_DIR = BASE_DIR / "logs"
 
 def _ensure_log_dir():
@@ -113,6 +116,23 @@ def _load_claude_api_keys() -> list[str]:
 
 API_KEYS = _load_api_keys()
 CLAUDE_API_KEYS = _load_claude_api_keys()
+
+# ── Startup diagnostics ──
+log.info("╔══════════════════════════════════════════════════════════╗")
+log.info("║            YT Automation — Provider Status              ║")
+log.info("╠══════════════════════════════════════════════════════════╣")
+log.info("║  Gemini keys : %-3d  │  Parallel workers : %-3d          ║", len(API_KEYS), GEMINI_PARALLEL_WORKERS)
+for i, k in enumerate(API_KEYS):
+    log.info("║    Key #%d: %s%-42s║", i + 1, k[:12] + "..." + k[-4:], "")
+log.info("║  Claude keys : %-3d  │  Sequential worker : %-3d          ║", len(CLAUDE_API_KEYS), CLAUDE_PARALLEL_WORKERS)
+for i, k in enumerate(CLAUDE_API_KEYS):
+    log.info("║    Key #%d: %s%-37s║", i + 1, k[:16] + "..." + k[-4:], "")
+_default_prov = "gemini" if API_KEYS else ("claude" if CLAUDE_API_KEYS else "none")
+log.info("║  Default provider: %-37s║", _default_prov.upper())
+log.info("╚══════════════════════════════════════════════════════════╝")
+if not API_KEYS and not CLAUDE_API_KEYS:
+    log.warning("[STARTUP] ⚠ NO API KEYS CONFIGURED — add keys via Settings page or .env file")
+
 _api_key_lock = threading.Lock()
 _api_key_index = 0
 _claude_key_lock = threading.Lock()
@@ -653,6 +673,53 @@ def _load_templates() -> dict:
 
 def _save_templates(data: dict) -> None:
     TEMPLATES_FILE.write_text(json.dumps(data, indent=4, ensure_ascii=False), encoding="utf-8")
+
+
+def _load_custom_niches() -> dict:
+    """Load user-created custom niches from niches_data.json."""
+    if NICHES_FILE.exists():
+        try:
+            return json.loads(NICHES_FILE.read_text(encoding="utf-8"))
+        except Exception as exc:
+            log.warning("niches_data.json invalid; falling back to empty: %s", exc)
+            return {}
+    return {}
+
+
+def _save_custom_niches(data: dict) -> None:
+    NICHES_FILE.write_text(json.dumps(data, indent=4, ensure_ascii=False), encoding="utf-8")
+
+
+def _normalize_sub_topics(raw_subs):
+    """Normalize sub_topics to list-of-dicts format.
+    Accepts: ["Topic A", "Topic B"] OR [{"name":"Topic A","image_style":"..."},...]
+    Returns: [{"name":"Topic A"}, {"name":"Topic B","image_style":"..."},...]
+    """
+    result = []
+    for s in (raw_subs or []):
+        if isinstance(s, str):
+            s = s.strip()
+            if s:
+                result.append({"name": s})
+        elif isinstance(s, dict):
+            name = (s.get("name") or "").strip()
+            if name:
+                result.append({k: v for k, v in s.items() if v})
+    return result
+
+
+def _get_all_niches() -> dict:
+    """Merge built-in NICHE_PRESETS with user-created custom niches."""
+    result: dict = {}
+    for name, preset in NICHE_PRESETS.items():
+        entry = {**preset, "is_builtin": True}
+        entry["sub_topics"] = _normalize_sub_topics(preset.get("sub_topics", []))
+        result[name] = entry
+    for name, niche in _load_custom_niches().items():
+        entry = {**niche, "is_builtin": False}
+        entry["sub_topics"] = _normalize_sub_topics(niche.get("sub_topics", []))
+        result[name] = entry
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1335,17 +1402,29 @@ def _write_outputs(
     gen_video_prompts: bool,
     gen_i2v_prompts: bool,
     include_dialogue: bool,
+    niche_name: str = "",
+    sub_niche_name: str = "",
 ) -> dict:
-    """Write all output files. Returns dict with paths and content for the UI."""
-    project = OUTPUT_DIR / _sanitize(folder_name)
+    """Write all output files. Returns dict with paths and content for the UI.
+    
+    Output structure:
+      output / {niche} / {sub_niche} / {video_title} / ...
+    If niche/sub_niche not provided, falls back to flat: output / {folder_name} / ...
+    """
+    base = OUTPUT_DIR
+    if niche_name:
+        base = base / _sanitize(niche_name)
+    if sub_niche_name:
+        base = base / _sanitize(sub_niche_name)
+    project = base / _sanitize(folder_name)
     sep = "=" * 60
 
     created_files = {}
 
-    # ── 1. Script (TTS-ready) ─────────────────────────────────────
-    script_dir = project / "1. Script"
-    script_dir.mkdir(parents=True, exist_ok=True)
-    script_path = script_dir / "script.txt"
+    # ── 1. Audio Script (TTS-ready) ─────────────────────────────────
+    audio_dir = project / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    script_path = audio_dir / "script.txt"
 
     lines = []
     for s in result.scenes:
@@ -1357,9 +1436,9 @@ def _write_outputs(
 
     # ── 2. Image Prompts ──────────────────────────────────────────
     if gen_image_prompts:
-        img_dir = project / "2. Image Prompts"
+        img_dir = project / "images"
         img_dir.mkdir(parents=True, exist_ok=True)
-        img_path = img_dir / "images prompts.txt"
+        img_path = img_dir / "image_prompts.txt"
         lines = []
         if result.character_master_variable:
             lines += [sep, "CHARACTER MASTER VARIABLE", sep, result.character_master_variable, "", ""]
@@ -1373,13 +1452,13 @@ def _write_outputs(
                     prompt_num += 1
         img_text = "\n".join(lines).strip() + "\n"
         img_path.write_text(img_text, encoding="utf-8")
-        created_files["images prompts.txt"] = img_text
+        created_files["image_prompts.txt"] = img_text
 
     # ── 3. Video Prompts ──────────────────────────────────────────
     if gen_video_prompts:
-        vid_dir = project / "3. Video Prompts"
+        vid_dir = project / "videos"
         vid_dir.mkdir(parents=True, exist_ok=True)
-        vid_path = vid_dir / "videos prompts.txt"
+        vid_path = vid_dir / "video_prompts.txt"
         lines = []
         if result.character_master_variable:
             lines += [sep, "CHARACTER MASTER VARIABLE", sep, result.character_master_variable, "", ""]
@@ -1396,11 +1475,13 @@ def _write_outputs(
                     prompt_num += 1
         vid_text = "\n".join(lines).strip() + "\n"
         vid_path.write_text(vid_text, encoding="utf-8")
-        created_files["videos prompts.txt"] = vid_text
+        created_files["video_prompts.txt"] = vid_text
 
     # ── 4. Image-to-Video Prompts ─────────────────────────────────
     if gen_i2v_prompts:
-        i2v_path = project / "image to video prompt.txt"
+        i2v_dir = project / "image_to_video"
+        i2v_dir.mkdir(parents=True, exist_ok=True)
+        i2v_path = i2v_dir / "i2v_prompts.txt"
         lines = []
         prompt_num = 1
         for s in result.scenes:
@@ -1413,7 +1494,7 @@ def _write_outputs(
         if lines:
             i2v_text = "\n".join(lines).strip() + "\n"
             i2v_path.write_text(i2v_text, encoding="utf-8")
-            created_files["image to video prompt.txt"] = i2v_text
+            created_files["i2v_prompts.txt"] = i2v_text
 
     # ── 5. Video Detail ───────────────────────────────────────────
     up = result.upload_pack
@@ -1451,6 +1532,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/workflow")
+def workflow():
+    return render_template("workflow.html")
+
+
 @app.route("/favicon.ico")
 def favicon():
     """Suppress the 404 favicon log noise."""
@@ -1459,12 +1545,13 @@ def favicon():
 
 @app.route("/api/init", methods=["GET"])
 def api_init():
-    """Combined init endpoint — returns templates, niche presets, Adobe Stock niches,
-    and provider info in a single HTTP round-trip."""
+    """Combined init endpoint — returns templates, niche presets, all niches,
+    Adobe Stock niches, and provider info in a single HTTP round-trip."""
     return jsonify({
         "success": True,
         "templates": _load_templates(),
         "niche_presets": NICHE_PRESETS,
+        "all_niches": _get_all_niches(),
         "adobe_stock_niches": ADOBE_STOCK_NICHES,
         "provider": _get_provider(),
         "available_providers": {
@@ -1474,6 +1561,14 @@ def api_init():
         "provider_models": {
             "gemini": GEMINI_MODEL,
             "claude": CLAUDE_MODEL,
+        },
+        "key_counts": {
+            "gemini": len(API_KEYS),
+            "claude": len(CLAUDE_API_KEYS),
+        },
+        "parallel_workers": {
+            "gemini": GEMINI_PARALLEL_WORKERS,
+            "claude": CLAUDE_PARALLEL_WORKERS,
         },
     })
 
@@ -1514,6 +1609,186 @@ def api_set_provider():
     return jsonify({"success": True, "provider": provider, "model": model})
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Flask Routes — API Key Management
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _read_env_raw() -> str:
+    """Read the .env file contents."""
+    if ENV_FILE.exists():
+        return ENV_FILE.read_text(encoding="utf-8")
+    return ""
+
+
+def _write_env_key(var_name: str, keys: list[str]) -> None:
+    """Update a single env variable in the .env file, preserving all other content."""
+    content = _read_env_raw()
+    value = ",".join(keys) if keys else ""
+    # Match the variable line (with optional quotes)
+    pattern = re.compile(
+        rf'^{re.escape(var_name)}\s*=\s*.*$',
+        re.MULTILINE,
+    )
+    new_line = f'{var_name}="{value}"' if value else f'{var_name}='
+    if pattern.search(content):
+        content = pattern.sub(new_line, content)
+    else:
+        # Append if not present
+        content = content.rstrip() + f"\n\n{new_line}\n"
+    ENV_FILE.write_text(content, encoding="utf-8")
+
+
+def _reload_keys() -> None:
+    """Reload API keys from .env into the running process."""
+    global API_KEYS, CLAUDE_API_KEYS
+    load_dotenv(ENV_FILE, override=True)
+    API_KEYS = _load_api_keys()
+    CLAUDE_API_KEYS = _load_claude_api_keys()
+    log.info("[KEYS] Reloaded — Gemini: %d keys, Claude: %d keys", len(API_KEYS), len(CLAUDE_API_KEYS))
+
+
+@app.route("/api/keys", methods=["GET"])
+def api_list_keys():
+    """List all configured API keys (masked for security)."""
+    return jsonify({
+        "success": True,
+        "gemini": {
+            "count": len(API_KEYS),
+            "keys": [{"index": i, "masked": _mask_key(k), "prefix": k[:8] + "..."} for i, k in enumerate(API_KEYS)],
+            "parallel_workers": GEMINI_PARALLEL_WORKERS,
+        },
+        "claude": {
+            "count": len(CLAUDE_API_KEYS),
+            "keys": [{"index": i, "masked": _mask_key(k), "prefix": k[:12] + "..."} for i, k in enumerate(CLAUDE_API_KEYS)],
+            "parallel_workers": CLAUDE_PARALLEL_WORKERS,
+        },
+        "active_provider": _get_provider(),
+    })
+
+
+@app.route("/api/keys/add", methods=["POST"])
+def api_add_key():
+    """Add a new API key for Gemini or Claude."""
+    data = request.json or {}
+    provider = (data.get("provider") or "").strip().lower()
+    key = (data.get("key") or "").strip()
+
+    if provider not in ("gemini", "claude"):
+        return jsonify({"success": False, "message": "Provider must be 'gemini' or 'claude'."})
+    if not key:
+        return jsonify({"success": False, "message": "API key is required."})
+
+    # Basic format validation
+    if provider == "gemini" and not key.startswith("AIza"):
+        return jsonify({"success": False, "message": "Gemini keys typically start with 'AIza'. Please check your key."})
+    if provider == "claude" and not key.startswith("sk-ant-"):
+        return jsonify({"success": False, "message": "Claude keys typically start with 'sk-ant-'. Please check your key."})
+
+    if provider == "gemini":
+        if key in API_KEYS:
+            return jsonify({"success": False, "message": "This Gemini key is already configured."})
+        new_keys = API_KEYS + [key]
+        _write_env_key("GEMINI_API_KEYS", new_keys)
+    else:
+        if key in CLAUDE_API_KEYS:
+            return jsonify({"success": False, "message": "This Claude key is already configured."})
+        new_keys = CLAUDE_API_KEYS + [key]
+        _write_env_key("CLAUDE_API_KEYS", new_keys)
+
+    _reload_keys()
+    log.info("[KEYS] Added %s key %s | total=%d", provider.upper(), _mask_key(key),
+             len(API_KEYS) if provider == "gemini" else len(CLAUDE_API_KEYS))
+    return jsonify({
+        "success": True,
+        "message": f"{provider.title()} key added successfully.",
+        "count": len(API_KEYS) if provider == "gemini" else len(CLAUDE_API_KEYS),
+    })
+
+
+@app.route("/api/keys/remove", methods=["POST"])
+def api_remove_key():
+    """Remove an API key by index."""
+    data = request.json or {}
+    provider = (data.get("provider") or "").strip().lower()
+    index = data.get("index")
+
+    if provider not in ("gemini", "claude"):
+        return jsonify({"success": False, "message": "Provider must be 'gemini' or 'claude'."})
+    if index is None or not isinstance(index, int):
+        return jsonify({"success": False, "message": "Key index is required."})
+
+    if provider == "gemini":
+        if index < 0 or index >= len(API_KEYS):
+            return jsonify({"success": False, "message": "Invalid key index."})
+        removed_key = API_KEYS[index]
+        new_keys = [k for i, k in enumerate(API_KEYS) if i != index]
+        _write_env_key("GEMINI_API_KEYS", new_keys)
+    else:
+        if index < 0 or index >= len(CLAUDE_API_KEYS):
+            return jsonify({"success": False, "message": "Invalid key index."})
+        removed_key = CLAUDE_API_KEYS[index]
+        new_keys = [k for i, k in enumerate(CLAUDE_API_KEYS) if i != index]
+        _write_env_key("CLAUDE_API_KEYS", new_keys)
+
+    _reload_keys()
+
+    # If the removed provider has no keys left and it was the active provider, switch
+    if provider == _get_provider():
+        remaining = API_KEYS if provider == "gemini" else CLAUDE_API_KEYS
+        if not remaining:
+            other = "claude" if provider == "gemini" else "gemini"
+            other_keys = CLAUDE_API_KEYS if provider == "gemini" else API_KEYS
+            if other_keys:
+                _set_provider(other)
+                log.info("[KEYS] Auto-switched to %s after removing last %s key", other.upper(), provider.upper())
+
+    log.info("[KEYS] Removed %s key %s | remaining=%d", provider.upper(), _mask_key(removed_key),
+             len(API_KEYS) if provider == "gemini" else len(CLAUDE_API_KEYS))
+    return jsonify({
+        "success": True,
+        "message": f"{provider.title()} key removed.",
+        "count": len(API_KEYS) if provider == "gemini" else len(CLAUDE_API_KEYS),
+    })
+
+
+@app.route("/api/keys/test", methods=["POST"])
+def api_test_key():
+    """Quick validation test for an API key — sends a minimal request."""
+    data = request.json or {}
+    provider = (data.get("provider") or "").strip().lower()
+    key = (data.get("key") or "").strip()
+
+    if provider not in ("gemini", "claude"):
+        return jsonify({"success": False, "message": "Provider must be 'gemini' or 'claude'."})
+    if not key:
+        return jsonify({"success": False, "message": "API key is required."})
+
+    try:
+        t0 = time.time()
+        if provider == "gemini":
+            client = genai.Client(api_key=key)
+            resp = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents="Respond with exactly: OK",
+                config={"max_output_tokens": 10, "temperature": 0},
+            )
+            response_text = (resp.text or "").strip()
+            latency = round(time.time() - t0, 2)
+            return jsonify({"success": True, "message": f"Gemini key is valid. Latency: {latency}s", "latency": latency})
+        else:
+            client = anthropic.Anthropic(api_key=key)
+            resp = client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=10,
+                temperature=0,
+                messages=[{"role": "user", "content": "Respond with exactly: OK"}],
+            )
+            latency = round(time.time() - t0, 2)
+            return jsonify({"success": True, "message": f"Claude key is valid. Latency: {latency}s", "latency": latency})
+    except Exception as exc:
+        return jsonify({"success": False, "message": f"Key test failed: {str(exc)[:200]}"})
+
+
 @app.route("/api/generate", methods=["POST"])
 def api_generate():
     try:
@@ -1536,6 +1811,16 @@ def api_generate():
         num_i2v_prompts = int(data.get("num_i2v_prompts") or 0)
         image_style = (data.get("image_style") or "").strip()
         video_style = (data.get("video_style") or "").strip()
+        niche_folder = (data.get("niche_folder") or "").strip()
+
+        # If a niche is selected, auto-use its image/video styles when not overridden
+        if niche_folder and not image_style:
+            all_niches = _get_all_niches()
+            niche_info = all_niches.get(niche_folder, {})
+            image_style = niche_info.get("image_style", "")
+            video_style = niche_info.get("video_style", video_style)
+            if niche_info.get("output_folder"):
+                niche_folder = niche_info["output_folder"].strip() or niche_folder
 
         template_instructions = _extract_template_instructions(template_name)
         wc = _estimate_words(transcript)
@@ -1736,6 +2021,94 @@ def get_existing(template_name):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Flask Routes — Custom Niche Management API
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/niches", methods=["GET"])
+def get_all_niches_route():
+    """Return all niches — built-in presets merged with custom user niches."""
+    return jsonify({"success": True, "niches": _get_all_niches()})
+
+
+@app.route("/api/niches", methods=["POST"])
+def create_niche():
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"success": False, "message": "Niche name is required"})
+    if name in NICHE_PRESETS:
+        return jsonify({"success": False, "message": f'"{name}" is a built-in niche and cannot be overwritten'})
+    custom = _load_custom_niches()
+    if name in custom:
+        return jsonify({"success": False, "message": "A custom niche with this name already exists"})
+    niche_data = {
+        "name": name,
+        "description": (data.get("description") or "").strip(),
+        "image_style": (data.get("image_style") or "").strip(),
+        "video_style": (data.get("video_style") or "").strip(),
+        "tone": (data.get("tone") or "").strip(),
+        "target_audience": (data.get("target_audience") or "").strip(),
+        "sub_topics": _normalize_sub_topics(data.get("sub_topics") or []),
+        "assigned_template": (data.get("assigned_template") or "").strip(),
+        "emoji": (data.get("emoji") or "✨").strip() or "✨",
+        "output_folder": (data.get("output_folder") or "").strip(),
+    }
+    custom[name] = niche_data
+    _save_custom_niches(custom)
+    return jsonify({"success": True, "message": f'Niche "{name}" created.'})
+
+
+@app.route("/api/niches/<name>", methods=["GET"])
+def get_niche(name):
+    all_niches = _get_all_niches()
+    if name in all_niches:
+        return jsonify({"success": True, "niche": all_niches[name], "name": name})
+    return jsonify({"success": False, "message": "Niche not found"})
+
+
+@app.route("/api/niches/<name>", methods=["PUT"])
+def update_niche(name):
+    if name in NICHE_PRESETS:
+        return jsonify({"success": False, "message": f'"{name}" is a built-in niche and cannot be modified'})
+    data = request.json or {}
+    new_name = (data.get("name") or name).strip()
+    custom = _load_custom_niches()
+    if name not in custom:
+        return jsonify({"success": False, "message": "Niche not found"})
+    if new_name != name and (new_name in custom or new_name in NICHE_PRESETS):
+        return jsonify({"success": False, "message": "Name already taken"})
+    niche_data = {
+        "name": new_name,
+        "description": (data.get("description") or "").strip(),
+        "image_style": (data.get("image_style") or "").strip(),
+        "video_style": (data.get("video_style") or "").strip(),
+        "tone": (data.get("tone") or "").strip(),
+        "target_audience": (data.get("target_audience") or "").strip(),
+        "sub_topics": _normalize_sub_topics(data.get("sub_topics") or []),
+        "assigned_template": (data.get("assigned_template") or "").strip(),
+        "emoji": (data.get("emoji") or "✨").strip() or "✨",
+        "output_folder": (data.get("output_folder") or "").strip(),
+    }
+    if new_name != name:
+        del custom[name]
+    custom[new_name] = niche_data
+    _save_custom_niches(custom)
+    return jsonify({"success": True, "message": f'Niche "{new_name}" updated.'})
+
+
+@app.route("/api/niches/<name>", methods=["DELETE"])
+def delete_niche(name):
+    if name in NICHE_PRESETS:
+        return jsonify({"success": False, "message": f'"{name}" is a built-in niche and cannot be deleted'})
+    custom = _load_custom_niches()
+    if name not in custom:
+        return jsonify({"success": False, "message": "Custom niche not found"})
+    del custom[name]
+    _save_custom_niches(custom)
+    return jsonify({"success": True, "message": f'Niche "{name}" deleted.'})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Flask Routes — Bulk Automation API
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1915,6 +2288,9 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
 
         result = _dispatch_generate(prompt, provider=options.get("provider"))
 
+        # Per-item sub_niche overrides the job-level default
+        item_sub_niche = item.get("sub_niche", "") or options.get("sub_niche_name", "")
+
         output = _write_outputs(
             result=result,
             folder_name=folder,
@@ -1922,6 +2298,8 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
             gen_video_prompts=options.get("gen_video_prompts", True),
             gen_i2v_prompts=options.get("gen_i2v_prompts", False),
             include_dialogue=options.get("include_dialogue", False),
+            niche_name=options.get("niche_name", ""),
+            sub_niche_name=item_sub_niche,
         )
 
         elapsed = time.time() - item_start_time
@@ -1981,8 +2359,8 @@ def _process_bulk_job(job_id: str):
     options = job["options"]
     provider = options.get("provider", _get_provider()).lower()
     
-    # Restrict to 1 worker if using Claude to prevent quota exhaustion
-    parallel_workers = 1 if provider == "claude" else BULK_PARALLEL_WORKERS
+    # Restrict workers based on provider rate limits
+    parallel_workers = CLAUDE_PARALLEL_WORKERS if provider == "claude" else GEMINI_PARALLEL_WORKERS
 
     log.info("[BULK %s] Starting parallel processing — %d items | workers=%d | provider=%s", 
              job_id, total, parallel_workers, provider)
@@ -2425,6 +2803,19 @@ def api_view_error_logs():
         return jsonify({"success": False, "message": str(exc)})
 
 
+@app.route("/api/logs/clear", methods=["POST"])
+def api_clear_logs():
+    """Clear the generation log file."""
+    log_file = LOG_DIR / "generation.log"
+    try:
+        if log_file.exists():
+            log_file.write_text("", encoding="utf-8")
+        log.info("[LOGS] Log file cleared by user")
+        return jsonify({"success": True, "message": "Logs cleared."})
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)})
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Niche Command Center — Title Generation & Pipeline
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2608,6 +2999,79 @@ def niche_generate_titles():
         return jsonify({"success": False, "message": str(exc)})
 
 
+@app.route("/api/niche/generate-titles-multi", methods=["POST"])
+def niche_generate_titles_multi():
+    """Generate titles for multiple sub-niches. Each sub-niche gets its own
+    batch of titles. Returns a flat list of titles, each tagged with sub_niche."""
+    try:
+        data = request.json or {}
+        niche = (data.get("niche") or "").strip()
+        if not niche:
+            return jsonify({"success": False, "message": "Niche is required."})
+
+        sub_topics = data.get("sub_topics", [])
+        if not sub_topics:
+            return jsonify({"success": False, "message": "No sub-topics provided."})
+
+        num_titles = max(1, min(30, int(data.get("num_titles") or 2)))
+        provider = (data.get("provider") or "").strip() or None
+
+        all_titles = []
+        first_analysis = ""
+        first_audience = ""
+        all_tips = []
+
+        for st in sub_topics:
+            st_name = st if isinstance(st, str) else (st.get("name") or "")
+            if not st_name.strip():
+                continue
+            try:
+                prompt = _build_title_prompt(niche, st_name.strip(), num_titles)
+                result = _dispatch_titles(prompt, provider=provider)
+                if not first_analysis:
+                    first_analysis = result.niche_analysis
+                    first_audience = result.audience_profile
+                if result.content_strategy_tips:
+                    all_tips.extend(result.content_strategy_tips)
+                for t in result.titles:
+                    td = t.model_dump()
+                    td["sub_niche"] = st_name.strip()
+                    all_titles.append(td)
+            except Exception as sub_exc:
+                log.warning("Title gen failed for sub-topic '%s': %s", st_name, sub_exc)
+                all_titles.append({
+                    "title": f"[FAILED] {st_name}",
+                    "sub_niche": st_name.strip(),
+                    "hook_angle": "error",
+                    "target_emotion": "",
+                    "content_brief": str(sub_exc)[:200],
+                    "why_it_works": "",
+                    "error": True,
+                })
+
+        # Deduplicate tips
+        seen_tips = set()
+        unique_tips = []
+        for tip in all_tips:
+            if tip not in seen_tips:
+                seen_tips.add(tip)
+                unique_tips.append(tip)
+
+        return jsonify({
+            "success": True,
+            "niche": niche,
+            "niche_analysis": first_analysis,
+            "audience_profile": first_audience,
+            "titles": all_titles,
+            "content_strategy_tips": unique_tips[:6],
+            "sub_topic_count": len(sub_topics),
+        })
+
+    except Exception as exc:
+        log.error("Multi title generation failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "message": str(exc)})
+
+
 @app.route("/api/niche/launch-pipeline", methods=["POST"])
 def niche_launch_pipeline():
     """Launch full production pipeline from niche titles. Reuses bulk job infrastructure."""
@@ -2628,6 +3092,9 @@ def niche_launch_pipeline():
             item["result"] = None
             if not item.get("folder"):
                 item["folder"] = _sanitize(item.get("title", "untitled"))
+
+        options["niche_name"] = niche
+        options["sub_niche_name"] = (data.get("sub_niche") or "").strip()
 
         job_id = str(uuid.uuid4())[:8]
         job = {

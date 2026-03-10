@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Guide — Auto Prompts Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-root: #0d0f17;
+            --bg-card: #151823;
+            --bg-input: #1a1d2e;
+            --border: rgba(255,255,255,.06);
+            --border2: rgba(255,255,255,.08);
+            --accent: #f0a444;
+            --accent-dim: rgba(240,164,68,.12);
+            --green: #4ade80;
+            --blue: #60a5fa;
+            --purple: #a78bfa;
+            --pink: #f472b6;
+            --red: #ff5c5c;
+            --cyan: #22d3ee;
+            --text: #e8e6e3;
+            --muted: #7c8293;
+            --muted2: #9ca3af;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-root);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        .bg-glow {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            background:
+                radial-gradient(ellipse 600px 400px at 20% 20%, rgba(240,164,68,.06), transparent),
+                radial-gradient(ellipse 500px 500px at 80% 70%, rgba(96,165,250,.04), transparent),
+                radial-gradient(ellipse 400px 300px at 50% 50%, rgba(167,139,250,.03), transparent);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .wf-header {
+            text-align: center;
+            margin-bottom: 56px;
+            animation: fadeInDown .6s ease;
+        }
+        .wf-header .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            transition: color .2s;
+        }
+        .wf-header .back-link:hover { color: var(--accent); }
+        .wf-header h1 {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -.5px;
+            margin-bottom: 10px;
+        }
+        .wf-header h1 span { color: var(--accent); }
+        .wf-header p {
+            font-size: 15px;
+            color: var(--muted2);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Flow Container */
+        .flow-track {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+
+        /* Connector line */
+        .flow-connector {
+            width: 2px;
+            height: 48px;
+            background: linear-gradient(to bottom, var(--accent), rgba(240,164,68,.2));
+            position: relative;
+        }
+        .flow-connector::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px rgba(240,164,68,.4);
+        }
+        .flow-connector.blue { background: linear-gradient(to bottom, var(--blue), rgba(96,165,250,.2)); }
+        .flow-connector.blue::after { background: var(--blue); box-shadow: 0 0 12px rgba(96,165,250,.4); }
+        .flow-connector.green { background: linear-gradient(to bottom, var(--green), rgba(74,222,128,.2)); }
+        .flow-connector.green::after { background: var(--green); box-shadow: 0 0 12px rgba(74,222,128,.4); }
+        .flow-connector.purple { background: linear-gradient(to bottom, var(--purple), rgba(167,139,250,.2)); }
+        .flow-connector.purple::after { background: var(--purple); box-shadow: 0 0 12px rgba(167,139,250,.4); }
+        .flow-connector.pink { background: linear-gradient(to bottom, var(--pink), rgba(244,114,182,.2)); }
+        .flow-connector.pink::after { background: var(--pink); box-shadow: 0 0 12px rgba(244,114,182,.4); }
+
+        /* Step card */
+        .flow-step {
+            width: 100%;
+            max-width: 780px;
+            background: var(--bg-card);
+            border: 1.5px solid var(--border2);
+            border-radius: 16px;
+            padding: 28px 32px;
+            position: relative;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity .5s ease, transform .5s ease, border-color .3s;
+        }
+        .flow-step.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .flow-step:hover {
+            border-color: rgba(240,164,68,.2);
+        }
+
+        .step-number {
+            position: absolute;
+            top: -14px;
+            left: 28px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .step-number.accent { background: var(--accent); box-shadow: 0 4px 16px rgba(240,164,68,.35); }
+        .step-number.blue { background: var(--blue); box-shadow: 0 4px 16px rgba(96,165,250,.35); }
+        .step-number.green { background: var(--green); color: #0d0f17; box-shadow: 0 4px 16px rgba(74,222,128,.35); }
+        .step-number.purple { background: var(--purple); box-shadow: 0 4px 16px rgba(167,139,250,.35); }
+        .step-number.pink { background: var(--pink); box-shadow: 0 4px 16px rgba(244,114,182,.35); }
+        .step-number.cyan { background: var(--cyan); color: #0d0f17; box-shadow: 0 4px 16px rgba(34,211,238,.35); }
+
+        .step-head {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .step-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .step-icon.accent { background: var(--accent-dim); color: var(--accent); }
+        .step-icon.blue { background: rgba(96,165,250,.1); color: var(--blue); }
+        .step-icon.green { background: rgba(74,222,128,.1); color: var(--green); }
+        .step-icon.purple { background: rgba(167,139,250,.1); color: var(--purple); }
+        .step-icon.pink { background: rgba(244,114,182,.1); color: var(--pink); }
+        .step-icon.cyan { background: rgba(34,211,238,.1); color: var(--cyan); }
+
+        .step-title {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -.2px;
+        }
+        .step-subtitle {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+        .step-body {
+            font-size: 13px;
+            color: var(--muted2);
+            line-height: 1.7;
+            margin-bottom: 18px;
+        }
+
+        /* Feature pills */
+        .feature-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .feature-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255,255,255,.04);
+            border: 1px solid var(--border2);
+            color: var(--muted2);
+            transition: all .2s;
+        }
+        .feature-pill:hover {
+            background: var(--accent-dim);
+            border-color: rgba(240,164,68,.2);
+            color: var(--accent);
+        }
+        .feature-pill i { font-size: 10px; }
+
+        /* Branch diagram */
+        .branch-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 12px;
+        }
+        .branch-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            text-align: center;
+            transition: all .2s;
+        }
+        .branch-card:hover {
+            border-color: rgba(240,164,68,.2);
+            transform: translateY(-1px);
+        }
+        .branch-card .bc-icon { font-size: 22px; margin-bottom: 8px; }
+        .branch-card .bc-label { font-size: 12px; font-weight: 700; color: var(--text); }
+        .branch-card .bc-desc { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+        /* sse live indicator */
+        .live-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-right: 4px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(74,222,128,.5); }
+            50% { opacity: .4; box-shadow: 0 0 2px rgba(74,222,128,.2); }
+        }
+
+        /* Architecture diagram */
+        .arch-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 20px;
+            background: var(--bg-input);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .arch-box {
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            min-width: 100px;
+        }
+        .arch-box.client { background: rgba(96,165,250,.12); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+        .arch-box.server { background: rgba(240,164,68,.12); color: var(--accent); border: 1px solid rgba(240,164,68,.2); }
+        .arch-box.ai { background: rgba(167,139,250,.12); color: var(--purple); border: 1px solid rgba(167,139,250,.2); }
+        .arch-box.storage { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+        .arch-arrow { color: var(--muted); font-size: 16px; }
+
+        /* Footer */
+        .wf-footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+            animation: fadeInUp .6s ease .4s both;
+        }
+        .wf-footer a {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 28px;
+            border-radius: 10px;
+            background: var(--accent);
+            color: #0d0f17;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all .2s;
+        }
+        .wf-footer a:hover {
+            background: #e6993a;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(240,164,68,.3);
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 24px 16px 60px; }
+            .wf-header h1 { font-size: 24px; }
+            .flow-step { padding: 22px 20px; }
+            .branch-row { grid-template-columns: 1fr; }
+            .arch-diagram { flex-direction: column; gap: 8px; }
+            .arch-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="wf-header">
+            <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+            <h1>Application <span>Workflow</span></h1>
+            <p>Complete guide to the enterprise-level AI content automation pipeline — from configuration to bulk export.</p>
+        </div>
+
+        <!-- Architecture Overview -->
+        <div class="flow-step visible" style="max-width:780px;margin:0 auto 40px;">
+            <div class="step-head">
+                <div class="step-icon cyan"><i class="fas fa-sitemap"></i></div>
+                <div>
+                    <div class="step-title">System Architecture</div>
+                    <div class="step-subtitle">High-Level Overview</div>
+                </div>
+            </div>
+            <div class="step-body">
+                The application follows a client-server architecture with dual AI provider support. The browser UI communicates with the Flask backend, which orchestrates calls to Gemini or Claude APIs and manages local file storage.
+            </div>
+            <div class="arch-diagram">
+                <div class="arch-box client"><i class="fas fa-desktop" style="display:block;font-size:16px;margin-bottom:4px;"></i>Browser UI</div>
+                <div class="arch-arrow"><i class="fas fa-arrows-left-right"></i></div>
+                <div class="arch-box server"><i class="fas fa-server" style="display:block;font-size:16px;margin-bottom:4px;"></i>Flask API</div>
+                <div class="arch-arrow"><i class="fas fa-arrows-left-right"></i></div>
+                <div class="arch-box ai"><i class="fas fa-brain" style="display:block;font-size:16px;margin-bottom:4px;"></i>Gemini / Claude</div>
+                <div class="arch-arrow"><i class="fas fa-arrow-right"></i></div>
+                <div class="arch-box storage"><i class="fas fa-folder-open" style="display:block;font-size:16px;margin-bottom:4px;"></i>Output Files</div>
+            </div>
+        </div>
+
+        <!-- Flow Track -->
+        <div class="flow-track">
+
+            <!-- Step 1: Configuration -->
+            <div class="flow-step" data-anim>
+                <div class="step-number accent">1</div>
+                <div class="step-head">
+                    <div class="step-icon accent"><i class="fas fa-cog"></i></div>
+                    <div>
+                        <div class="step-title">Configure API Keys & Provider</div>
+                        <div class="step-subtitle">Settings Panel — One-Time Setup</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Start by entering your API keys in the Settings panel. The application supports <strong>Google Gemini 2.5 Flash</strong> and <strong>Anthropic Claude Haiku</strong> as AI providers. You can switch between providers at any time — the active provider is used for all generation tasks.
+                </div>
+                <div class="feature-grid">
+                    <span class="feature-pill"><i class="fas fa-key"></i> Gemini API Key</span>
+                    <span class="feature-pill"><i class="fas fa-key"></i> Claude API Key</span>
+                    <span class="feature-pill"><i class="fas fa-toggle-on"></i> Provider Switch</span>
+                    <span class="feature-pill"><i class="fas fa-shield-halved"></i> Secure .env Storage</span>
+                </div>
+            </div>
+
+            <div class="flow-connector"></div>
+
+            <!-- Step 2: Niche Manager -->
+            <div class="flow-step" data-anim>
+                <div class="step-number blue">2</div>
+                <div class="step-head">
+                    <div class="step-icon blue"><i class="fas fa-layer-group"></i></div>
+                    <div>
+                        <div class="step-title">Manage Niches & Sub-Niches</div>
+                        <div class="step-subtitle">Niche Manager — Organize Your Content Domains</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Create and organize content niches with hierarchical sub-topics. Each niche can have an assigned image style, video style, tone, target audience, and linked template — giving you full control over content generation defaults.
+                </div>
+                <div class="branch-row">
+                    <div class="branch-card">
+                        <div class="bc-icon">📦</div>
+                        <div class="bc-label">10 Built-In Presets</div>
+                        <div class="bc-desc">Dark Psychology, Stoicism, True Crime, Horror, Finance, Space, History, Motivation, Relationships, Conspiracy</div>
+                    </div>
+                    <div class="branch-card">
+                        <div class="bc-icon">✏️</div>
+                        <div class="bc-label">Custom Niches</div>
+                        <div class="bc-desc">Create unlimited niches with custom sub-topics, styles, tone, audience & output folders</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flow-connector blue"></div>
+
+            <!-- Step 3: Templates -->
+            <div class="flow-step" data-anim>
+                <div class="step-number purple">3</div>
+                <div class="step-head">
+                    <div class="step-icon purple"><i class="fas fa-file-code"></i></div>
+                    <div>
+                        <div class="step-title">Create & Manage Templates</div>
+                        <div class="step-subtitle">Template Manager — Define Output Schemas</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Templates define the structure of AI-generated content using Pydantic schemas. Each template specifies the exact fields, types, and hierarchy of the output — ensuring consistent, structured results every time the AI generates content.
+                </div>
+                <div class="feature-grid">
+                    <span class="feature-pill"><i class="fas fa-code"></i> Pydantic Schemas</span>
+                    <span class="feature-pill"><i class="fas fa-copy"></i> Duplicate Templates</span>
+                    <span class="feature-pill"><i class="fas fa-upload"></i> Import / Export</span>
+                    <span class="feature-pill"><i class="fas fa-edit"></i> Live Editing</span>
+                    <span class="feature-pill"><i class="fas fa-list-check"></i> Field Validation</span>
+                </div>
+            </div>
+
+            <div class="flow-connector purple"></div>
+
+            <!-- Step 4: Generate Content -->
+            <div class="flow-step" data-anim>
+                <div class="step-number green">4</div>
+                <div class="step-head">
+                    <div class="step-icon green"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <div>
+                        <div class="step-title">Generate AI Content</div>
+                        <div class="step-subtitle">Prompt Creator — Single Title Generation</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Enter a topic title, select a template, choose a niche, and optionally provide additional prompts. The AI generates structured content using the selected template's schema — output includes scripts, image prompts, video prompts, and more based on your template design.
+                </div>
+                <div class="branch-row">
+                    <div class="branch-card">
+                        <div class="bc-icon">🧠</div>
+                        <div class="bc-label">AI Generation</div>
+                        <div class="bc-desc">Gemini 2.5 Flash or Claude Haiku generates content matching Pydantic schema</div>
+                    </div>
+                    <div class="branch-card">
+                        <div class="bc-icon">📂</div>
+                        <div class="bc-label">Auto File Output</div>
+                        <div class="bc-desc">Content is auto-saved to organized folder structures with all generated artifacts</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flow-connector green"></div>
+
+            <!-- Step 5: Bulk Automation -->
+            <div class="flow-step" data-anim>
+                <div class="step-number pink">5</div>
+                <div class="step-head">
+                    <div class="step-icon pink"><i class="fas fa-bolt"></i></div>
+                    <div>
+                        <div class="step-title">Bulk Automation</div>
+                        <div class="step-subtitle">Generate Multiple Titles in Parallel</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Enter multiple titles (one per line or comma-separated), select a niche and template, and launch bulk generation. The system uses multi-threading with configurable concurrency to process all titles simultaneously with real-time progress via Server-Sent Events.
+                </div>
+                <div class="feature-grid">
+                    <span class="feature-pill"><span class="live-dot"></span> Real-Time SSE Progress</span>
+                    <span class="feature-pill"><i class="fas fa-layer-group"></i> Multi-Threaded</span>
+                    <span class="feature-pill"><i class="fas fa-sliders-h"></i> Configurable Workers</span>
+                    <span class="feature-pill"><i class="fas fa-check-double"></i> Success / Fail Tracking</span>
+                    <span class="feature-pill"><i class="fas fa-folder-tree"></i> Niche Output Folders</span>
+                </div>
+            </div>
+
+            <div class="flow-connector pink"></div>
+
+            <!-- Step 6: Folder Creator -->
+            <div class="flow-step" data-anim>
+                <div class="step-number cyan">6</div>
+                <div class="step-head">
+                    <div class="step-icon cyan"><i class="fas fa-folder-plus"></i></div>
+                    <div>
+                        <div class="step-title">Folder Structure Creator</div>
+                        <div class="step-subtitle">Organize and Manage Output</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Use the Folder Creator to generate organized directory structures for your content. Select a niche, provide titles, and the system creates the complete folder hierarchy with all necessary sub-folders for scripts, image prompts, video prompts, and metadata.
+                </div>
+                <div class="feature-grid">
+                    <span class="feature-pill"><i class="fas fa-sitemap"></i> Auto Directory Trees</span>
+                    <span class="feature-pill"><i class="fas fa-tags"></i> Niche-Based Organization</span>
+                    <span class="feature-pill"><i class="fas fa-eye"></i> Project Browser</span>
+                    <span class="feature-pill"><i class="fas fa-download"></i> Export Content</span>
+                </div>
+            </div>
+
+            <div class="flow-connector"></div>
+
+            <!-- Step 7: Adobe Stock -->
+            <div class="flow-step" data-anim>
+                <div class="step-number accent">7</div>
+                <div class="step-head">
+                    <div class="step-icon accent"><i class="fas fa-images"></i></div>
+                    <div>
+                        <div class="step-title">Adobe Stock Automation</div>
+                        <div class="step-subtitle">Stock Content Pipeline</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Dedicated pipeline for Adobe Stock content generation. Upload inspiration images, configure metadata requirements, and generate stock-optimized content with proper keywords, titles, and descriptions in bulk with SSE progress tracking.
+                </div>
+                <div class="feature-grid">
+                    <span class="feature-pill"><i class="fas fa-upload"></i> Image Upload</span>
+                    <span class="feature-pill"><i class="fas fa-hashtag"></i> Auto Keywords</span>
+                    <span class="feature-pill"><span class="live-dot"></span> SSE Bulk Processing</span>
+                    <span class="feature-pill"><i class="fas fa-file-csv"></i> CSV Export</span>
+                </div>
+            </div>
+
+            <div class="flow-connector blue"></div>
+
+            <!-- Step 8: Logs & Monitoring -->
+            <div class="flow-step" data-anim>
+                <div class="step-number blue">8</div>
+                <div class="step-head">
+                    <div class="step-icon blue"><i class="fas fa-chart-line"></i></div>
+                    <div>
+                        <div class="step-title">Logs & Monitoring</div>
+                        <div class="step-subtitle">Track All Generation Activity</div>
+                    </div>
+                </div>
+                <div class="step-body">
+                    Every generation — single or bulk — is logged. View success and failure logs, inspect raw AI responses, and monitor system health. Failed generations are saved with full error details for debugging and retry.
+                </div>
+                <div class="feature-grid">
+                    <span class="feature-pill"><i class="fas fa-filter"></i> Filter by Status</span>
+                    <span class="feature-pill"><i class="fas fa-file-lines"></i> Raw Response Viewer</span>
+                    <span class="feature-pill"><i class="fas fa-trash"></i> Log Cleanup</span>
+                    <span class="feature-pill"><i class="fas fa-clock-rotate-left"></i> History</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="wf-footer">
+            <a href="/"><i class="fas fa-rocket"></i> Launch Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        // Animate steps on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, index * 80);
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15 });
+
+        document.querySelectorAll('.flow-step[data-anim]').forEach(el => observer.observe(el));
+    </script>
+</body>
+</html>

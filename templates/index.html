@@ -438,6 +438,33 @@
             background: var(--accent); border-color: var(--accent); color: #fff;
             box-shadow: 0 0 14px rgba(240,164,68,.4);
         }
+
+        /* ══════════════════════════════════════
+           NICHE STUDIO TABS
+        ══════════════════════════════════════ */
+        .ns-tab {
+            flex: 1; padding: 10px 18px; background: transparent; border: none;
+            color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer;
+            border-radius: var(--radius-sm); transition: all .2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .ns-tab:hover { color: var(--text); background: var(--bg-card2); }
+        .ns-tab.active {
+            background: var(--accent); color: #fff;
+            box-shadow: 0 2px 10px rgba(240,164,68,.3);
+        }
+        /* Sub-topic row in niche editor */
+        .nm-subtopic-row {
+            display: flex; gap: 8px; align-items: flex-start;
+            padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); transition: all .2s;
+        }
+        .nm-subtopic-row:hover { border-color: var(--accent-dim); }
+        .nm-subtopic-expand {
+            display: none; margin-top: 8px; padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+        .nm-subtopic-row.expanded .nm-subtopic-expand { display: block; }
         .step-item.done .step-num, .step-item.completed .step-num {
             background: var(--green); border-color: var(--green); color: #fff;
         }
@@ -865,7 +892,7 @@
             </div>
             <div class="nav-item" data-page="niche">
                 <div class="nav-icon"><i class="fas fa-crosshairs"></i></div>
-                <span>Niche Hub</span>
+                <span>Niche Studio</span>
             </div>
             <div class="nav-item" data-page="bulk">
                 <div class="nav-icon"><i class="fas fa-layer-group"></i></div>
@@ -898,7 +925,19 @@
         </div>
 
         <div class="nav-group">
+            <div class="nav-group-label">Help</div>
+            <a class="nav-item" href="/workflow" style="text-decoration:none;">
+                <div class="nav-icon"><i class="fas fa-project-diagram"></i></div>
+                <span>Workflow Guide</span>
+            </a>
+        </div>
+
+        <div class="nav-group">
             <div class="nav-group-label">System</div>
+            <div class="nav-item" data-page="settings">
+                <div class="nav-icon"><i class="fas fa-cog"></i></div>
+                <span>Settings & Keys</span>
+            </div>
             <div class="nav-item" data-page="logs">
                 <div class="nav-icon"><i class="fas fa-terminal"></i></div>
                 <span>Logs</span>
@@ -1168,6 +1207,119 @@
             </div>
         </div>
 
+        <!-- Niche Manager modals moved to Niche Studio -->
+
+        <!-- ─── PAGE: Settings & API Keys ─── -->
+        <div class="page" id="page-settings" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-cog"></i></span> Settings & API Keys</h2>
+                    <p>Manage your AI provider API keys. Add multiple Gemini keys for round-robin rotation and high-throughput parallel processing.</p>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- Provider Status -->
+                <div class="col-12">
+                    <div class="card-dark" style="padding:18px 22px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                            <div style="display:flex;align-items:center;gap:14px;">
+                                <div style="width:40px;height:40px;border-radius:10px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;"><i class="fas fa-bolt" style="color:var(--accent);font-size:16px;"></i></div>
+                                <div>
+                                    <div style="font-weight:800;font-size:15px;color:var(--text);">Active Provider: <span id="settingsActiveProvider" style="color:var(--accent);"></span></div>
+                                    <div style="font-size:12px;color:var(--muted);">
+                                        Gemini: <span id="settingsGeminiCount" style="color:var(--green);font-weight:700;">0</span> keys · <span id="settingsGeminiWorkers" style="color:var(--green);">10</span> parallel workers &nbsp;│&nbsp;
+                                        Claude: <span id="settingsClaudeCount" style="color:var(--purple);font-weight:700;">0</span> keys · <span id="settingsClaudeWorkers" style="color:var(--purple);">1</span> sequential worker
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:10px;">
+                                <button class="btn-accent btn-sm" onclick="settingsSwitchProvider('gemini')" id="settingsBtnGemini"><i class="fas fa-bolt"></i> Use Gemini</button>
+                                <button class="btn-ghost btn-sm" onclick="settingsSwitchProvider('claude')" id="settingsBtnClaude"><i class="fas fa-brain"></i> Use Claude</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gemini Keys -->
+                <div class="col-lg-6">
+                    <div class="card-dark" style="padding:20px;">
+                        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+                            <span><i class="fas fa-bolt" style="color:var(--green);"></i> Gemini API Keys</span>
+                            <span class="badge-green" style="font-size:10px;" id="geminiKeyBadge">0 keys</span>
+                        </div>
+                        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+                            Add multiple keys for automatic round-robin rotation. When one key hits quota (429), the system instantly switches to the next. <strong>10 parallel workers</strong> for maximum throughput.
+                        </div>
+                        <div id="geminiKeysList" style="margin-bottom:14px;"></div>
+                        <div style="display:flex;gap:8px;">
+                            <input type="text" class="form-control-dark" id="newGeminiKey" placeholder="AIzaSy..." style="flex:1;font-size:12px;">
+                            <button class="btn-accent btn-sm" onclick="settingsAddKey('gemini')"><i class="fas fa-plus"></i> Add</button>
+                            <button class="btn-ghost btn-sm" onclick="settingsTestKey('gemini')" title="Test key before adding"><i class="fas fa-vial"></i></button>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted);margin-top:8px;"><i class="fas fa-link" style="margin-right:4px;opacity:.5;"></i> Get free keys at <code>aistudio.google.com/app/apikey</code></div>
+                    </div>
+                </div>
+
+                <!-- Claude Keys -->
+                <div class="col-lg-6">
+                    <div class="card-dark" style="padding:20px;">
+                        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+                            <span><i class="fas fa-brain" style="color:var(--purple);"></i> Claude API Keys</span>
+                            <span class="badge-blue" style="font-size:10px;background:rgba(167,139,250,.15);color:var(--purple);border-color:rgba(167,139,250,.2);" id="claudeKeyBadge">0 keys</span>
+                        </div>
+                        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+                            Claude has stricter rate limits — processes <strong>1 request at a time</strong> sequentially to avoid exhaustion. Key rotation still applies on quota errors.
+                        </div>
+                        <div id="claudeKeysList" style="margin-bottom:14px;"></div>
+                        <div style="display:flex;gap:8px;">
+                            <input type="text" class="form-control-dark" id="newClaudeKey" placeholder="sk-ant-api03..." style="flex:1;font-size:12px;">
+                            <button class="btn-ghost btn-sm" style="border-color:rgba(167,139,250,.3);color:var(--purple);" onclick="settingsAddKey('claude')"><i class="fas fa-plus"></i> Add</button>
+                            <button class="btn-ghost btn-sm" onclick="settingsTestKey('claude')" title="Test key before adding"><i class="fas fa-vial"></i></button>
+                        </div>
+                        <div style="font-size:11px;color:var(--muted);margin-top:8px;"><i class="fas fa-link" style="margin-right:4px;opacity:.5;"></i> Get keys at <code>console.anthropic.com/settings/keys</code></div>
+                    </div>
+                </div>
+
+                <!-- How It Works -->
+                <div class="col-12">
+                    <div class="card-dark" style="padding:20px;">
+                        <div class="card-title"><i class="fas fa-info-circle"></i> How Key Rotation Works</div>
+                        <div class="row g-3" style="margin-top:4px;">
+                            <div class="col-md-3">
+                                <div style="text-align:center;padding:16px;">
+                                    <div style="font-size:28px;margin-bottom:8px;">🔄</div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Round-Robin</div>
+                                    <div style="font-size:11px;color:var(--muted);line-height:1.5;">Keys cycle in order. Each request uses the next available key.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="text-align:center;padding:16px;">
+                                    <div style="font-size:28px;margin-bottom:8px;">⚡</div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Instant Failover</div>
+                                    <div style="font-size:11px;color:var(--muted);line-height:1.5;">Hit 429? Key enters 65s cooldown and the next key takes over instantly.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="text-align:center;padding:16px;">
+                                    <div style="font-size:28px;margin-bottom:8px;">🚀</div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Gemini: 10× Parallel</div>
+                                    <div style="font-size:11px;color:var(--muted);line-height:1.5;">Gemini generates up to 10 videos simultaneously for maximum speed.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="text-align:center;padding:16px;">
+                                    <div style="font-size:28px;margin-bottom:8px;">🛡️</div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Claude: 1× Sequential</div>
+                                    <div style="font-size:11px;color:var(--muted);line-height:1.5;">Claude processes one at a time with 15s delays to stay within limits.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ─── PAGE: Logs ─── -->
         <div class="page" id="page-logs" style="display:none;">
             <div class="page-header">
@@ -1181,6 +1333,8 @@
                 <button class="btn-accent btn-sm" onclick="loadLogs('all')"><i class="fas fa-list"></i> All Logs</button>
                 <button class="btn-ghost btn-sm danger" onclick="loadLogs('errors')"><i class="fas fa-exclamation-triangle"></i> Errors Only</button>
                 <button class="btn-ghost btn-sm" onclick="loadLogs('all')"><i class="fas fa-sync"></i> Refresh</button>
+                <div style="flex:1;"></div>
+                <button class="btn-ghost btn-sm danger" onclick="clearLogs()" title="Clear all logs"><i class="fas fa-trash-alt"></i> Clear Logs</button>
             </div>
             <div class="card-dark">
                 <div class="output-panel" id="logsContent" style="max-height:600px;font-size:12px;line-height:1.7;">Click a button above to load logs.</div>
@@ -1367,190 +1521,281 @@
                     </div>
                 </div>
             </div>
-        </div>        <!-- ─── PAGE: Niche Hub ─── -->
+        </div>        <!-- ─── PAGE: Niche Studio (Merged Hub + Manager) ─── -->
         <div class="page" id="page-niche" style="display:none;">
             <div class="page-header">
                 <div class="page-header-left">
-                    <h2><span class="header-icon"><i class="fas fa-crosshairs"></i></span> Niche Command Center</h2>
-                    <p>Select a niche, generate viral titles, and launch the full production pipeline in one click</p>
+                    <h2><span class="header-icon"><i class="fas fa-crosshairs"></i></span> Niche Studio</h2>
+                    <p>Browse, customize, and launch full production pipelines from your niche library</p>
                 </div>
+                <button class="btn-accent btn-sm" onclick="nmShowCreateModal()"><i class="fas fa-plus"></i> Create Niche</button>
             </div>
 
-            <!-- Steps indicator -->
-            <div class="steps-bar">
-                <div class="step-item active" id="nicheStep1Ind">
-                    <div class="step-num">1</div>
-                    <span>Pick Niche</span>
-                </div>
-                <div class="step-connector"></div>
-                <div class="step-item" id="nicheStep2Ind">
-                    <div class="step-num">2</div>
-                    <span>Select Titles</span>
-                </div>
-                <div class="step-connector"></div>
-                <div class="step-item" id="nicheStep3Ind">
-                    <div class="step-num">3</div>
-                    <span>Pipeline</span>
-                </div>
+            <!-- ═══ TAB BAR ═══ -->
+            <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:4px;">
+                <button class="ns-tab active" id="nsTabLibrary" onclick="nsSetTab('library')"><i class="fas fa-th-large"></i> Library</button>
+                <button class="ns-tab" id="nsTabGenerate" onclick="nsSetTab('generate')"><i class="fas fa-rocket"></i> Generate</button>
             </div>
 
-            <!-- Step 1: Niche Selection -->
-            <div id="nicheStep1">
-                <div class="card-dark" style="margin-bottom:16px;">
-                    <div class="card-title"><i class="fas fa-th"></i> Quick-Pick Presets</div>
-                    <div class="row g-2" id="nichePresetGrid"></div>
-                </div>
-                <div class="card-dark">
-                    <div class="card-title"><i class="fas fa-pencil-alt"></i> Custom Niche</div>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-12 col-sm-6 col-md-4">
-                            <label class="form-label">Niche <span class="required">*</span></label>
-                            <input type="text" class="form-control-dark" id="nicheInput" placeholder="e.g. Dark Psychology, Stoicism…">
+            <!-- ═══ TAB: LIBRARY ═══ -->
+            <div id="nsLibrary">
+                <!-- Search & Filter -->
+                <div class="card-dark" style="padding:14px 18px;margin-bottom:20px;">
+                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:220px;">
+                            <input type="text" class="form-control-dark" id="nmSearchInput" placeholder="Search niches..." oninput="nmFilterNiches()" style="padding:9px 14px;">
                         </div>
-                        <div class="col-12 col-sm-6 col-md-3">
-                            <label class="form-label">Sub-Topic <span class="opt">optional</span></label>
-                            <input type="text" class="form-control-dark" id="nicheSubTopic" placeholder="e.g. Narcissism, Morning Habits…">
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <label class="form-label">Title Count</label>
-                            <input type="number" class="form-control-dark" id="nicheTitleCount" value="15" min="5" max="30">
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <button class="btn-accent w-100 btn-lg" id="btnNicheTitles" onclick="nicheGenerateTitles()">
-                                <i class="fas fa-bolt"></i> Generate Titles
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 2: Title Results + Pipeline Config -->
-            <div id="nicheStep2" style="display:none;">
-                <!-- Header row -->
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-                    <div class="card-title" style="margin:0;"><i class="fas fa-fire text-accent"></i> Generated Titles &nbsp;<span id="nicheTitleCount2" class="badge-accent"></span></div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <button class="btn-ghost btn-sm" onclick="nicheToggleAll(true)"><i class="fas fa-check-double"></i> All</button>
-                        <button class="btn-ghost btn-sm" onclick="nicheToggleAll(false)"><i class="fas fa-square"></i> None</button>
-                        <button class="btn-ghost btn-sm" onclick="nicheBackToStep1()"><i class="fas fa-arrow-left"></i> Back</button>
-                    </div>
-                </div>
-
-                <!-- Analysis -->
-                <div class="niche-analysis-box" id="nicheAnalysis"></div>
-
-                <!-- Title grid -->
-                <div class="row g-3 mb-4" id="nicheTitleGrid" style="max-height:580px;overflow-y:auto;"></div>
-
-                <!-- Strategy tips -->
-                <div id="nicheStrategyTips" style="display:none;margin-bottom:20px;"></div>
-
-                <!-- Config + Launch -->
-                <div class="row g-4">
-                    <div class="col-lg-6">
-                        <div class="card-dark">
-                            <div class="card-title"><i class="fas fa-palette"></i> Style Configuration</div>
-                            <div class="mb-3">
-                                <label class="form-label">Image Style</label>
-                                <input type="text" class="form-control-dark" id="nicheImageStyle" placeholder="e.g. cinematic, anime, photorealistic…">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Video Style</label>
-                                <input type="text" class="form-control-dark" id="nicheVideoStyle" placeholder="e.g. documentary, dramatic, b-roll…">
-                            </div>
-                            <hr class="divider">
-                            <div class="card-title" style="font-size:12px;"><i class="fas fa-cog"></i> Generation Options</div>
-                            <div class="row g-2 mb-3">
-                                <div class="col-6 col-sm-3 col-lg-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="nicheChkDialogue">
-                                        <label class="form-check-label" for="nicheChkDialogue">Dialogue</label>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-3 col-lg-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="nicheChkImages" checked>
-                                        <label class="form-check-label" for="nicheChkImages">Image prompts</label>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-3 col-lg-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="nicheChkVideos" checked>
-                                        <label class="form-check-label" for="nicheChkVideos">Video prompts</label>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-sm-3 col-lg-6">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="nicheChkI2V">
-                                        <label class="form-check-label" for="nicheChkI2V">Image-to-video</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row g-2">
-                                <div class="col-4">
-                                    <label class="form-label">Images</label>
-                                    <input type="number" class="form-control-dark" id="nicheNumImages" placeholder="Auto" min="0" max="200">
-                                </div>
-                                <div class="col-4">
-                                    <label class="form-label">Videos</label>
-                                    <input type="number" class="form-control-dark" id="nicheNumVideos" placeholder="Auto" min="0" max="200">
-                                </div>
-                                <div class="col-4">
-                                    <label class="form-label">I2V</label>
-                                    <input type="number" class="form-control-dark" id="nicheNumI2V" placeholder="Auto" min="0" max="200">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-6">
-                        <div class="launch-panel h-100">
-                            <div class="card-title" style="color:var(--accent);margin-bottom:16px;"><i class="fas fa-rocket"></i> Launch Pipeline</div>
-                            <div id="nichePipelineSummary" style="margin-bottom:20px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
-                            <button class="btn-accent w-100 btn-lg" id="btnNichePipeline" onclick="nicheLaunchPipeline()">
-                                <i class="fas fa-play"></i> Generate Everything
-                            </button>
-                            <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">Script · Image prompts · Video prompts · SEO · Folder per title</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 3: Pipeline Progress -->
-            <div id="nicheStep3" style="display:none;">
-                <div class="card-dark">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
-                        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-tasks"></i> Pipeline Running <span id="nicheJobId" class="badge-accent" style="margin-left:8px;"></span></div>
                         <div style="display:flex;gap:8px;">
-                            <button class="btn-ghost btn-sm" id="btnNichePause" onclick="nichePausePipeline()"><i class="fas fa-pause"></i> Pause</button>
-                            <button class="btn-ghost btn-sm success" id="btnNicheResume" onclick="nicheResumePipeline()" style="display:none;"><i class="fas fa-play"></i> Resume</button>
-                            <button class="btn-ghost btn-sm danger" onclick="nicheCancelPipeline()"><i class="fas fa-stop"></i> Cancel</button>
+                            <button class="btn-ghost btn-sm" id="nmFilterAll" onclick="nmSetFilter('all')" style="font-weight:700;color:var(--accent);border-color:var(--accent);">All</button>
+                            <button class="btn-ghost btn-sm" id="nmFilterBuiltin" onclick="nmSetFilter('builtin')">Built-in</button>
+                            <button class="btn-ghost btn-sm" id="nmFilterCustom" onclick="nmSetFilter('custom')">Custom</button>
+                        </div>
+                        <span id="nmNicheCount" style="font-size:12px;color:var(--muted);margin-left:auto;"></span>
+                    </div>
+                </div>
+                <!-- Niche Grid -->
+                <div class="row g-3" id="nmNicheGrid">
+                    <div style="text-align:center;padding:40px;color:var(--muted);">
+                        <i class="fas fa-spinner fa-spin" style="font-size:24px;margin-bottom:12px;display:block;"></i>
+                        Loading niches...
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ TAB: GENERATE (3-Step Wizard) ═══ -->
+            <div id="nsGenerate" style="display:none;">
+                <!-- Steps indicator -->
+                <div class="steps-bar">
+                    <div class="step-item active" id="nicheStep1Ind">
+                        <div class="step-num">1</div>
+                        <span>Pick Niche</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="step-item" id="nicheStep2Ind">
+                        <div class="step-num">2</div>
+                        <span>Select Titles</span>
+                    </div>
+                    <div class="step-connector"></div>
+                    <div class="step-item" id="nicheStep3Ind">
+                        <div class="step-num">3</div>
+                        <span>Pipeline</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: Niche Selection -->
+                <div id="nicheStep1">
+                    <div class="card-dark" style="margin-bottom:16px;">
+                        <div class="card-title"><i class="fas fa-th"></i> Quick-Pick Presets</div>
+                        <div class="row g-2" id="nichePresetGrid"></div>
+                    </div>
+                    <div class="card-dark">
+                        <div class="card-title"><i class="fas fa-pencil-alt"></i> Custom Niche</div>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label class="form-label">Niche <span class="required">*</span></label>
+                                <input type="text" class="form-control-dark" id="nicheInput" placeholder="e.g. Dark Psychology, Stoicism…">
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label class="form-label">Sub-Topic <span class="opt">optional</span></label>
+                                <select class="form-select-dark" id="nicheSubTopic">
+                                    <option value="">All Sub-Topics</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label">Title Count</label>
+                                <input type="number" class="form-control-dark" id="nicheTitleCount" value="15" min="5" max="30">
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <button class="btn-accent w-100 btn-lg" id="btnNicheTitles" onclick="nicheGenerateTitles()">
+                                    <i class="fas fa-bolt"></i> Generate Titles
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="prog-track mb-2">
-                        <div id="nicheProgressBar" class="prog-fill" style="width:0%;"></div>
-                    </div>
-                    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
-                        <div class="stat-chip" style="flex:1;min-width:120px;">
-                            <div class="chip-icon" style="background:rgba(61,214,140,.12);color:var(--green);"><i class="fas fa-check-circle"></i></div>
-                            <div><div class="chip-val text-green" id="nicheDoneCount">0</div><div class="chip-label">Done</div></div>
+                </div>
+
+                <!-- Step 2: Title Results + Pipeline Config -->
+                <div id="nicheStep2" style="display:none;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                        <div class="card-title" style="margin:0;"><i class="fas fa-fire text-accent"></i> Generated Titles &nbsp;<span id="nicheTitleCount2" class="badge-accent"></span></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn-ghost btn-sm" onclick="nicheToggleAll(true)"><i class="fas fa-check-double"></i> All</button>
+                            <button class="btn-ghost btn-sm" onclick="nicheToggleAll(false)"><i class="fas fa-square"></i> None</button>
+                            <button class="btn-ghost btn-sm" onclick="nicheBackToStep1()"><i class="fas fa-arrow-left"></i> Back</button>
                         </div>
-                        <div class="stat-chip" style="flex:1;min-width:120px;">
-                            <div class="chip-icon" style="background:rgba(255,92,92,.12);color:var(--red);"><i class="fas fa-times-circle"></i></div>
-                            <div><div class="chip-val text-red" id="nicheFailCount">0</div><div class="chip-label">Failed</div></div>
-                        </div>
-                        <div class="stat-chip" style="flex:1;min-width:120px;">
-                            <div class="chip-icon" style="background:rgba(255,255,255,.06);color:var(--muted2);"><i class="fas fa-list"></i></div>
-                            <div><div class="chip-val" id="nicheTotalCount">0</div><div class="chip-label">Total</div></div>
-                        </div>
-                        <div style="margin-left:auto;align-self:center;font-weight:700;font-size:14px;" id="nicheStatusLabel" class="text-accent">Running…</div>
                     </div>
-                    <div style="max-height:420px;overflow-y:auto;" id="nicheItemsList"></div>
-                    <div id="nicheCompletedActions" style="display:none;margin-top:18px;display:none;" class="d-flex gap-2">
-                        <button class="btn-accent" onclick="nicheExportZip()"><i class="fas fa-download"></i> Export All as ZIP</button>
-                        <button class="btn-ghost" onclick="nicheRetryFailed()"><i class="fas fa-redo"></i> Retry Failed</button>
-                        <button class="btn-ghost" onclick="nicheNewBatch()"><i class="fas fa-plus"></i> New Batch</button>
+                    <div class="niche-analysis-box" id="nicheAnalysis"></div>
+                    <div class="row g-3 mb-4" id="nicheTitleGrid" style="max-height:580px;overflow-y:auto;"></div>
+                    <div id="nicheStrategyTips" style="display:none;margin-bottom:20px;"></div>
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <div class="card-dark">
+                                <div class="card-title"><i class="fas fa-palette"></i> Style Configuration</div>
+                                <div class="mb-3">
+                                    <label class="form-label">Image Style</label>
+                                    <input type="text" class="form-control-dark" id="nicheImageStyle" placeholder="e.g. cinematic, anime, photorealistic…">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Video Style</label>
+                                    <input type="text" class="form-control-dark" id="nicheVideoStyle" placeholder="e.g. documentary, dramatic, b-roll…">
+                                </div>
+                                <hr class="divider">
+                                <div class="card-title" style="font-size:12px;"><i class="fas fa-cog"></i> Generation Options</div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6 col-sm-3 col-lg-6">
+                                        <div class="form-check"><input class="form-check-input" type="checkbox" id="nicheChkDialogue"><label class="form-check-label" for="nicheChkDialogue">Dialogue</label></div>
+                                    </div>
+                                    <div class="col-6 col-sm-3 col-lg-6">
+                                        <div class="form-check"><input class="form-check-input" type="checkbox" id="nicheChkImages" checked><label class="form-check-label" for="nicheChkImages">Image prompts</label></div>
+                                    </div>
+                                    <div class="col-6 col-sm-3 col-lg-6">
+                                        <div class="form-check"><input class="form-check-input" type="checkbox" id="nicheChkVideos" checked><label class="form-check-label" for="nicheChkVideos">Video prompts</label></div>
+                                    </div>
+                                    <div class="col-6 col-sm-3 col-lg-6">
+                                        <div class="form-check"><input class="form-check-input" type="checkbox" id="nicheChkI2V"><label class="form-check-label" for="nicheChkI2V">Image-to-video</label></div>
+                                    </div>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-4"><label class="form-label">Images</label><input type="number" class="form-control-dark" id="nicheNumImages" placeholder="Auto" min="0" max="200"></div>
+                                    <div class="col-4"><label class="form-label">Videos</label><input type="number" class="form-control-dark" id="nicheNumVideos" placeholder="Auto" min="0" max="200"></div>
+                                    <div class="col-4"><label class="form-label">I2V</label><input type="number" class="form-control-dark" id="nicheNumI2V" placeholder="Auto" min="0" max="200"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="launch-panel h-100">
+                                <div class="card-title" style="color:var(--accent);margin-bottom:16px;"><i class="fas fa-rocket"></i> Launch Pipeline</div>
+                                <div id="nichePipelineSummary" style="margin-bottom:20px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                                <button class="btn-accent w-100 btn-lg" id="btnNichePipeline" onclick="nicheLaunchPipeline()"><i class="fas fa-play"></i> Generate Everything</button>
+                                <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">Script · Image prompts · Video prompts · SEO · Folder per title</p>
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Step 3: Pipeline Progress -->
+                <div id="nicheStep3" style="display:none;">
+                    <div class="card-dark">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+                            <div class="card-title" style="margin-bottom:0;"><i class="fas fa-tasks"></i> Pipeline Running <span id="nicheJobId" class="badge-accent" style="margin-left:8px;"></span></div>
+                            <div style="display:flex;gap:8px;">
+                                <button class="btn-ghost btn-sm" id="btnNichePause" onclick="nichePausePipeline()"><i class="fas fa-pause"></i> Pause</button>
+                                <button class="btn-ghost btn-sm success" id="btnNicheResume" onclick="nicheResumePipeline()" style="display:none;"><i class="fas fa-play"></i> Resume</button>
+                                <button class="btn-ghost btn-sm danger" onclick="nicheCancelPipeline()"><i class="fas fa-stop"></i> Cancel</button>
+                            </div>
+                        </div>
+                        <div class="prog-track mb-2"><div id="nicheProgressBar" class="prog-fill" style="width:0%;"></div></div>
+                        <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
+                            <div class="stat-chip" style="flex:1;min-width:120px;">
+                                <div class="chip-icon" style="background:rgba(61,214,140,.12);color:var(--green);"><i class="fas fa-check-circle"></i></div>
+                                <div><div class="chip-val text-green" id="nicheDoneCount">0</div><div class="chip-label">Done</div></div>
+                            </div>
+                            <div class="stat-chip" style="flex:1;min-width:120px;">
+                                <div class="chip-icon" style="background:rgba(255,92,92,.12);color:var(--red);"><i class="fas fa-times-circle"></i></div>
+                                <div><div class="chip-val text-red" id="nicheFailCount">0</div><div class="chip-label">Failed</div></div>
+                            </div>
+                            <div class="stat-chip" style="flex:1;min-width:120px;">
+                                <div class="chip-icon" style="background:rgba(255,255,255,.06);color:var(--muted2);"><i class="fas fa-list"></i></div>
+                                <div><div class="chip-val" id="nicheTotalCount">0</div><div class="chip-label">Total</div></div>
+                            </div>
+                            <div style="margin-left:auto;align-self:center;font-weight:700;font-size:14px;" id="nicheStatusLabel" class="text-accent">Running…</div>
+                        </div>
+                        <div style="max-height:420px;overflow-y:auto;" id="nicheItemsList"></div>
+                        <div id="nicheCompletedActions" style="display:none;margin-top:18px;" class="d-flex gap-2">
+                            <button class="btn-ghost" onclick="nicheRetryFailed()"><i class="fas fa-redo"></i> Retry Failed</button>
+                            <button class="btn-ghost" onclick="nicheNewBatch()"><i class="fas fa-plus"></i> New Batch</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── MODAL: Niche Editor ─── -->
+        <div class="modal-backdrop" id="nmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:5000;justify-content:center;align-items:flex-start;padding-top:5vh;overflow-y:auto;">
+            <div style="background:var(--bg-card2);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:750px;margin:0 auto;box-shadow:var(--shadow);animation:toastIn .2s ease;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);">
+                    <h3 id="nmModalTitle" style="margin:0;font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;">
+                        <i class="fas fa-th-large" style="color:var(--accent);"></i> Create Niche
+                    </h3>
+                    <button class="btn-icon" onclick="nmCloseModal()" title="Close"><i class="fas fa-times"></i></button>
+                </div>
+                <div style="padding:24px;max-height:70vh;overflow-y:auto;">
+                    <input type="hidden" id="nmEditingName" value="">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Niche Name <span class="required">*</span></label>
+                            <input type="text" class="form-control-dark" id="nmName" placeholder="e.g. Dark Psychology">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Emoji Icon</label>
+                            <input type="text" class="form-control-dark" id="nmEmoji" placeholder="✨" value="✨" maxlength="4">
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control-dark" id="nmDescription" rows="2" placeholder="Brief description of this niche..."></textarea>
+                    </div>
+
+                    <!-- Sub-Topics Section with per-sub-topic overrides -->
+                    <div style="margin-top:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <label class="form-label" style="margin:0;">Sub-Topics</label>
+                            <button class="btn-ghost btn-sm" onclick="nmAddSubTopic()" type="button" style="font-size:11px;"><i class="fas fa-plus"></i> Add Sub-Topic</button>
+                        </div>
+                        <div id="nmSubTopicsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+                        <div id="nmSubTopicsEmpty" style="text-align:center;padding:16px;color:var(--muted);font-size:12px;border:1px dashed var(--border);border-radius:var(--radius-sm);margin-top:4px;">
+                            No sub-topics yet. Click "Add Sub-Topic" to add one.
+                        </div>
+                    </div>
+
+                    <div class="row g-3" style="margin-top:10px;">
+                        <div class="col-md-6">
+                            <label class="form-label">Image Style <span class="opt">niche default</span></label>
+                            <textarea class="form-control-dark" id="nmImageStyle" rows="2" placeholder="Cinematic noir photography, dramatic lighting..."></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Video Style <span class="opt">niche default</span></label>
+                            <textarea class="form-control-dark" id="nmVideoStyle" rows="2" placeholder="Slow dolly zoom, atmospheric effects..."></textarea>
+                        </div>
+                    </div>
+                    <div class="row g-3" style="margin-top:10px;">
+                        <div class="col-md-6">
+                            <label class="form-label">Tone</label>
+                            <input type="text" class="form-control-dark" id="nmTone" placeholder="Authoritative, mysterious, educational...">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Target Audience</label>
+                            <input type="text" class="form-control-dark" id="nmAudience" placeholder="18-45, psychology enthusiasts...">
+                        </div>
+                    </div>
+                    <div class="row g-3" style="margin-top:10px;">
+                        <div class="col-md-6">
+                            <label class="form-label">Assigned Template</label>
+                            <select class="form-select-dark" id="nmTemplate"><option value="">None</option></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Output Folder <span class="opt">optional</span></label>
+                            <input type="text" class="form-control-dark" id="nmOutputFolder" placeholder="Custom output folder name">
+                        </div>
+                    </div>
+                </div>
+                <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
+                    <button class="btn-ghost" onclick="nmCloseModal()">Cancel</button>
+                    <button class="btn-accent" id="nmSaveBtn" onclick="nmSave()"><i class="fas fa-save"></i> Save Niche</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── MODAL: Niche Detail View ─── -->
+        <div class="modal-backdrop" id="nmDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:5000;justify-content:center;align-items:flex-start;padding-top:5vh;overflow-y:auto;">
+            <div style="background:var(--bg-card2);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:700px;margin:0 auto;box-shadow:var(--shadow);animation:toastIn .2s ease;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);">
+                    <h3 id="nmDetailTitle" style="margin:0;font-size:16px;font-weight:800;color:var(--text);"></h3>
+                    <button class="btn-icon" onclick="document.getElementById('nmDetailModal').style.display='none'" title="Close"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="nmDetailContent" style="padding:24px;max-height:70vh;overflow-y:auto;"></div>
+                <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
+                    <button class="btn-ghost" onclick="document.getElementById('nmDetailModal').style.display='none'">Close</button>
                 </div>
             </div>
         </div>
@@ -1864,12 +2109,13 @@
 
                 // refresh data on page switch
                 const pg = el.dataset.page;
-                if (pg === 'niche') loadNichePresets();
+                if (pg === 'niche') { loadNicheManager(); loadNichePresets(); }
                 if (pg === 'adobe') loadAdobeNiches();
                 if (pg === 'templates') loadTemplates();
                 if (pg === 'projects') loadProjects();
                 if (pg === 'prompt-creator') refreshTemplateDropdowns();
                 if (pg === 'folder-creator') refreshTemplateDropdowns();
+                if (pg === 'settings') loadSettingsPage();
                 if (pg === 'logs') loadLogs('all');
                 if (pg !== 'niche') {
                     if (nichePollTimer) { clearInterval(nichePollTimer); nichePollTimer = null; }
@@ -2539,6 +2785,291 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // NICHE MANAGER PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        let nmAllNiches = {};
+        let nmCurrentFilter = 'all';
+
+        async function loadNicheManager() {
+            try {
+                let niches;
+                if (window._initCache && window._initCache.all_niches) {
+                    niches = window._initCache.all_niches;
+                } else {
+                    const d = await api('/api/niches');
+                    if (!d.success) return toast('Failed to load niches', 'error');
+                    niches = d.niches;
+                }
+                nmAllNiches = niches;
+                nmRenderGrid();
+                // Populate template dropdown in niche modal
+                nmRefreshTemplateSelect();
+            } catch(e) {
+                toast('Error loading niches: ' + e.message, 'error');
+            }
+        }
+
+        function nmRefreshTemplateSelect() {
+            const sel = document.getElementById('nmTemplate');
+            if (!sel) return;
+            const current = sel.value;
+            sel.innerHTML = '<option value="">None</option>';
+            const tpls = window._initCache ? window._initCache.templates : {};
+            Object.keys(tpls || {}).forEach(n => {
+                const opt = document.createElement('option');
+                opt.value = n;
+                opt.textContent = n;
+                if (n === current) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        function nmRenderGrid() {
+            const grid = document.getElementById('nmNicheGrid');
+            const search = (document.getElementById('nmSearchInput')?.value || '').toLowerCase();
+            const entries = Object.entries(nmAllNiches).filter(([name, n]) => {
+                if (nmCurrentFilter === 'builtin' && !n.is_builtin) return false;
+                if (nmCurrentFilter === 'custom' && n.is_builtin) return false;
+                if (search && !name.toLowerCase().includes(search) && !(n.description || '').toLowerCase().includes(search)) return false;
+                return true;
+            });
+
+            document.getElementById('nmNicheCount').textContent = entries.length + ' niche' + (entries.length !== 1 ? 's' : '');
+
+            if (!entries.length) {
+                grid.innerHTML = '<div class="col-12" style="text-align:center;padding:40px;color:var(--muted);"><i class="fas fa-inbox" style="font-size:32px;margin-bottom:12px;display:block;opacity:.5;"></i>No niches found.</div>';
+                return;
+            }
+
+            const emojiMap = {'Dark Psychology':'🧠','Stoicism & Philosophy':'⚖️','True Crime & Mystery':'🔍','Horror & Creepypasta':'👻','Personal Finance & Wealth':'💰','Space & Cosmos':'🌌','History & Civilizations':'📜','Motivation & Self-Improvement':'🚀','Relationship Psychology':'❤️','Conspiracy & Hidden Knowledge':'🕵️'};
+
+            grid.innerHTML = entries.map(([name, n]) => {
+                const emoji = n.emoji || emojiMap[name] || '✨';
+                const isBuiltin = n.is_builtin;
+                const subCount = (n.sub_topics || []).length;
+                const desc = (n.description || '').substring(0, 80);
+                return `
+                <div class="col-xl-3 col-lg-4 col-md-6">
+                    <div class="card-dark" style="padding:18px;height:100%;cursor:pointer;transition:all .18s;border:1.5px solid var(--border);" onmouseenter="this.style.borderColor='rgba(240,164,68,.35)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.borderColor='var(--border)';this.style.transform='none'" onclick="nmViewDetail('${esc(name).replace(/'/g, "\\'")}')">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <span style="font-size:24px;">${emoji}</span>
+                                <div>
+                                    <div style="font-weight:700;font-size:14px;color:var(--text);line-height:1.3;">${esc(name)}</div>
+                                    <span class="${isBuiltin ? 'badge-blue' : 'badge-accent'}" style="font-size:9px;margin-top:3px;">${isBuiltin ? 'BUILT-IN' : 'CUSTOM'}</span>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+                                <button class="btn-icon" onclick="nsGenerateFromNiche('${esc(name).replace(/'/g, "\\'")}')" title="Generate from this niche"><i class="fas fa-rocket" style="font-size:11px;color:var(--accent);"></i></button>
+                                ${!isBuiltin ? `
+                                <button class="btn-icon" onclick="nmEditNiche('${esc(name).replace(/'/g, "\\'")}')" title="Edit"><i class="fas fa-pen" style="font-size:11px;"></i></button>
+                                <button class="btn-icon danger" onclick="nmDeleteNiche('${esc(name).replace(/'/g, "\\'")}')" title="Delete"><i class="fas fa-trash" style="font-size:11px;"></i></button>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div style="font-size:12px;color:var(--muted2);line-height:1.5;margin-bottom:10px;">${esc(desc)}${desc.length >= 80 ? '…' : ''}</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            ${subCount > 0 ? `<span class="badge-green" style="font-size:10px;">${subCount} sub-topics</span>` : ''}
+                            ${n.assigned_template ? `<span class="badge-accent" style="font-size:10px;"><i class="fas fa-file-alt me-1"></i>${esc(n.assigned_template)}</span>` : ''}
+                            ${n.tone ? `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(255,255,255,.05);color:var(--muted2);">${esc((n.tone || '').substring(0, 25))}</span>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function nmFilterNiches() { nmRenderGrid(); }
+
+        function nmSetFilter(f) {
+            nmCurrentFilter = f;
+            ['All','Builtin','Custom'].forEach(x => {
+                const el = document.getElementById('nmFilter' + x);
+                if (el) {
+                    el.style.fontWeight = (x.toLowerCase() === f) ? '700' : '500';
+                    el.style.color = (x.toLowerCase() === f) ? 'var(--accent)' : 'var(--muted2)';
+                    el.style.borderColor = (x.toLowerCase() === f) ? 'var(--accent)' : 'var(--border2)';
+                }
+            });
+            nmRenderGrid();
+        }
+
+        function nmShowCreateModal() {
+            document.getElementById('nmEditingName').value = '';
+            document.getElementById('nmModalTitle').innerHTML = '<i class="fas fa-plus" style="color:var(--accent);"></i> Create New Niche';
+            document.getElementById('nmName').value = '';
+            document.getElementById('nmEmoji').value = '✨';
+            document.getElementById('nmDescription').value = '';
+            _nmSubTopics = [];
+            _nmRenderSubTopics();
+            document.getElementById('nmImageStyle').value = '';
+            document.getElementById('nmVideoStyle').value = '';
+            document.getElementById('nmTone').value = '';
+            document.getElementById('nmAudience').value = '';
+            document.getElementById('nmTemplate').value = '';
+            document.getElementById('nmOutputFolder').value = '';
+            document.getElementById('nmName').disabled = false;
+            nmRefreshTemplateSelect();
+            document.getElementById('nmModal').style.display = 'flex';
+        }
+
+        function nmCloseModal() {
+            document.getElementById('nmModal').style.display = 'none';
+        }
+
+        function nmEditNiche(name) {
+            const n = nmAllNiches[name];
+            if (!n) return toast('Niche not found', 'error');
+            document.getElementById('nmEditingName').value = name;
+            document.getElementById('nmModalTitle').innerHTML = '<i class="fas fa-pen" style="color:var(--accent);"></i> Edit Niche';
+            document.getElementById('nmName').value = n.name || name;
+            document.getElementById('nmEmoji').value = n.emoji || '✨';
+            document.getElementById('nmDescription').value = n.description || '';
+            // Populate sub-topics as objects
+            _nmSubTopics = (n.sub_topics || []).map(st => {
+                if (typeof st === 'string') return { name: st, image_style: '', video_style: '', tone: '', custom_instructions: '' };
+                return { name: st.name || '', image_style: st.image_style || '', video_style: st.video_style || '', tone: st.tone || '', custom_instructions: st.custom_instructions || '' };
+            });
+            _nmRenderSubTopics();
+            document.getElementById('nmImageStyle').value = n.image_style || '';
+            document.getElementById('nmVideoStyle').value = n.video_style || '';
+            document.getElementById('nmTone').value = n.tone || '';
+            document.getElementById('nmAudience').value = n.target_audience || '';
+            document.getElementById('nmTemplate').value = n.assigned_template || '';
+            document.getElementById('nmOutputFolder').value = n.output_folder || '';
+            document.getElementById('nmName').disabled = false;
+            nmRefreshTemplateSelect();
+            document.getElementById('nmTemplate').value = n.assigned_template || '';
+            document.getElementById('nmModal').style.display = 'flex';
+        }
+
+        async function nmSave() {
+            const editingName = document.getElementById('nmEditingName').value;
+            const name = document.getElementById('nmName').value.trim();
+            if (!name) return toast('Niche name is required', 'error');
+
+            const data = {
+                name,
+                emoji: document.getElementById('nmEmoji').value.trim() || '✨',
+                description: document.getElementById('nmDescription').value.trim(),
+                sub_topics: _nmSubTopics.filter(st => st.name.trim()).map(st => ({
+                    name: st.name.trim(),
+                    image_style: (st.image_style || '').trim(),
+                    video_style: (st.video_style || '').trim(),
+                    tone: (st.tone || '').trim(),
+                    custom_instructions: (st.custom_instructions || '').trim(),
+                })),
+                image_style: document.getElementById('nmImageStyle').value.trim(),
+                video_style: document.getElementById('nmVideoStyle').value.trim(),
+                tone: document.getElementById('nmTone').value.trim(),
+                target_audience: document.getElementById('nmAudience').value.trim(),
+                assigned_template: document.getElementById('nmTemplate').value.trim(),
+                output_folder: document.getElementById('nmOutputFolder').value.trim(),
+            };
+
+            const isEdit = !!editingName;
+            const url = isEdit ? `/api/niches/${encodeURIComponent(editingName)}` : '/api/niches';
+            const method = isEdit ? 'PUT' : 'POST';
+
+            try {
+                const d = await api(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                if (d.success) {
+                    toast(d.message, 'success');
+                    nmCloseModal();
+                    // Refresh cache
+                    const r = await api('/api/niches');
+                    if (r.success) {
+                        nmAllNiches = r.niches;
+                        if (window._initCache) window._initCache.all_niches = r.niches;
+                    }
+                    // Reset presets cache so Generate tab refreshes
+                    nichePresets = {};
+                    nmRenderGrid();
+                } else {
+                    toast(d.message, 'error');
+                }
+            } catch(e) {
+                toast('Error: ' + e.message, 'error');
+            }
+        }
+
+        async function nmDeleteNiche(name) {
+            if (!confirm(`Delete custom niche "${name}"? This cannot be undone.`)) return;
+            try {
+                const d = await api(`/api/niches/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                if (d.success) {
+                    toast(d.message, 'success');
+                    delete nmAllNiches[name];
+                    if (window._initCache && window._initCache.all_niches) delete window._initCache.all_niches[name];
+                    nmRenderGrid();
+                } else {
+                    toast(d.message, 'error');
+                }
+            } catch(e) {
+                toast('Error: ' + e.message, 'error');
+            }
+        }
+
+        function nmViewDetail(name) {
+            const n = nmAllNiches[name];
+            if (!n) return;
+            const emojiMap = {'Dark Psychology':'🧠','Stoicism & Philosophy':'⚖️','True Crime & Mystery':'🔍','Horror & Creepypasta':'👻','Personal Finance & Wealth':'💰','Space & Cosmos':'🌌','History & Civilizations':'📜','Motivation & Self-Improvement':'🚀','Relationship Psychology':'❤️','Conspiracy & Hidden Knowledge':'🕵️'};
+            const emoji = n.emoji || emojiMap[name] || '✨';
+
+            document.getElementById('nmDetailTitle').innerHTML = `<span style="font-size:20px;margin-right:8px;">${emoji}</span> ${esc(name)}`;
+
+            const subs = (n.sub_topics || []);
+            const subNames = subs.map(s => typeof s === 'string' ? s : (s.name || ''));
+            let subsHtml = '';
+            if (subs.length) {
+                subsHtml = `<div style="margin-bottom:16px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Sub-Topics (${subs.length})</div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                    ${subs.map(s => {
+                        const sName = typeof s === 'string' ? s : (s.name || '');
+                        const hasOverrides = typeof s === 'object' && (s.image_style || s.video_style || s.tone || s.custom_instructions);
+                        let overridesHtml = '';
+                        if (hasOverrides) {
+                            const parts = [];
+                            if (s.image_style) parts.push('<i class="fas fa-image"></i> ' + esc(s.image_style));
+                            if (s.video_style) parts.push('<i class="fas fa-video"></i> ' + esc(s.video_style));
+                            if (s.tone) parts.push('<i class="fas fa-music"></i> ' + esc(s.tone));
+                            overridesHtml = `<div style="font-size:10px;color:var(--muted);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">${parts.join('')}</div>`;
+                        }
+                        return `<div style="padding:6px 10px;background:var(--bg-input);border-radius:6px;border:1px solid var(--border);">
+                            <span class="badge-accent" style="font-size:11px;">${esc(sName)}</span>
+                            ${hasOverrides ? '<span style="font-size:9px;color:var(--accent);margin-left:6px;">has overrides</span>' : ''}
+                            ${overridesHtml}
+                        </div>`;
+                    }).join('')}
+                    </div>
+                </div>`;
+            }
+            let html = `
+                <div style="margin-bottom:16px;">
+                    <span class="${n.is_builtin ? 'badge-blue' : 'badge-accent'}">${n.is_builtin ? 'BUILT-IN PRESET' : 'CUSTOM NICHE'}</span>
+                </div>
+                ${n.description ? `<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Description</div><div style="font-size:13px;color:var(--text);line-height:1.6;">${esc(n.description)}</div></div>` : ''}
+                ${subsHtml}
+                <div class="row g-3" style="margin-bottom:16px;">
+                    ${n.image_style ? `<div class="col-md-6"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Image Style</div><div style="font-size:12px;color:var(--muted2);line-height:1.5;background:var(--bg-input);padding:10px 12px;border-radius:8px;border:1px solid var(--border);">${esc(n.image_style)}</div></div>` : ''}
+                    ${n.video_style ? `<div class="col-md-6"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Video Style</div><div style="font-size:12px;color:var(--muted2);line-height:1.5;background:var(--bg-input);padding:10px 12px;border-radius:8px;border:1px solid var(--border);">${esc(n.video_style)}</div></div>` : ''}
+                </div>
+                <div class="row g-3">
+                    ${n.tone ? `<div class="col-md-6"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Tone</div><div style="font-size:13px;color:var(--text);">${esc(n.tone)}</div></div>` : ''}
+                    ${n.target_audience ? `<div class="col-md-6"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Target Audience</div><div style="font-size:13px;color:var(--text);">${esc(n.target_audience)}</div></div>` : ''}
+                </div>
+                ${n.assigned_template ? `<div style="margin-top:16px;padding:12px;background:rgba(240,164,68,.07);border-radius:10px;border-left:3px solid var(--accent);"><div style="font-size:12px;font-weight:700;color:var(--accent);"><i class="fas fa-file-alt me-1"></i> Assigned Template: ${esc(n.assigned_template)}</div></div>` : ''}
+                ${n.output_folder ? `<div style="margin-top:10px;font-size:12px;color:var(--muted2);"><i class="fas fa-folder me-1"></i> Output: ${esc(n.output_folder)}</div>` : ''}
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <button class="btn-accent btn-sm" onclick="document.getElementById('nmDetailModal').style.display='none';nsGenerateFromNiche('${esc(name).replace(/'/g, "\\'")}')"><i class="fas fa-rocket"></i> Generate Content</button>
+                    ${!n.is_builtin ? `<button class="btn-ghost btn-sm" onclick="document.getElementById('nmDetailModal').style.display='none';nmEditNiche('${esc(name).replace(/'/g, "\\'")}')"><i class="fas fa-pen"></i> Edit</button>` : ''}
+                </div>
+            `;
+            document.getElementById('nmDetailContent').innerHTML = html;
+            document.getElementById('nmDetailModal').style.display = 'flex';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // NICHE HUB PAGE
         // ═══════════════════════════════════════════════════════════════════
         let nichePresets = {};
@@ -2546,6 +3077,123 @@
         let nichePipelineJobId = null;
         let nichePollTimer = null;
         let nicheEventSource = null;
+        let _nsSelectedNiche = '';
+        let _nsSelectedSubNiche = '';
+
+        /* ── Tab Switching ── */
+        function nsSetTab(tab) {
+            document.getElementById('nsLibrary').style.display = tab === 'library' ? '' : 'none';
+            document.getElementById('nsGenerate').style.display = tab === 'generate' ? '' : 'none';
+            document.getElementById('nsTabLibrary').classList.toggle('active', tab === 'library');
+            document.getElementById('nsTabGenerate').classList.toggle('active', tab === 'generate');
+            if (tab === 'library') nmRenderGrid();
+            if (tab === 'generate') loadNichePresets();
+        }
+
+        /* ── Jump from Library card → Generate tab with niche pre-filled ── */
+        function nsGenerateFromNiche(name) {
+            const n = nmAllNiches[name];
+            if (!n) return;
+            nsSetTab('generate');
+            document.getElementById('nicheInput').value = name;
+            if (n.image_style) document.getElementById('nicheImageStyle').value = n.image_style;
+            if (n.video_style) document.getElementById('nicheVideoStyle').value = n.video_style;
+            _nsSelectedNiche = name;
+            _nsSelectedSubNiche = '';
+            // populate sub-topic dropdown
+            _nsPopulateSubTopics(n.sub_topics || []);
+            toast(`Loaded "${name}" — pick a sub-topic and generate titles`, 'info');
+        }
+
+        function _nsPopulateSubTopics(subs) {
+            const sel = document.getElementById('nicheSubTopic');
+            sel.innerHTML = '<option value="">All Sub-Topics</option>';
+            subs.forEach(s => {
+                const name = typeof s === 'string' ? s : (s.name || '');
+                if (!name) return;
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            });
+            sel.onchange = function() {
+                _nsSelectedSubNiche = this.value;
+                // Apply sub-topic overrides if present
+                const niche = nmAllNiches[_nsSelectedNiche];
+                if (!niche) return;
+                const sub = (niche.sub_topics || []).find(st => (typeof st === 'string' ? st : st.name) === this.value);
+                if (sub && typeof sub === 'object') {
+                    if (sub.image_style) document.getElementById('nicheImageStyle').value = sub.image_style;
+                    if (sub.video_style) document.getElementById('nicheVideoStyle').value = sub.video_style;
+                } else if (niche) {
+                    // Reset to niche defaults
+                    document.getElementById('nicheImageStyle').value = niche.image_style || '';
+                    document.getElementById('nicheVideoStyle').value = niche.video_style || '';
+                }
+            };
+        }
+
+        /* ── Sub-topic management in editor modal ── */
+        let _nmSubTopics = []; // array of {name, image_style, video_style, tone, custom_instructions}
+
+        function nmAddSubTopic() {
+            _nmSubTopics.push({ name: '', image_style: '', video_style: '', tone: '', custom_instructions: '' });
+            _nmRenderSubTopics();
+        }
+
+        function nmRemoveSubTopic(idx) {
+            _nmSubTopics.splice(idx, 1);
+            _nmRenderSubTopics();
+        }
+
+        function nmToggleSubTopicExpand(idx) {
+            const row = document.getElementById('nmST_' + idx);
+            if (row) row.classList.toggle('expanded');
+        }
+
+        function _nmRenderSubTopics() {
+            const container = document.getElementById('nmSubTopicsList');
+            const emptyMsg = document.getElementById('nmSubTopicsEmpty');
+            if (!_nmSubTopics.length) {
+                container.innerHTML = '';
+                emptyMsg.style.display = '';
+                return;
+            }
+            emptyMsg.style.display = 'none';
+            container.innerHTML = _nmSubTopics.map((st, i) => {
+                const hasOverrides = st.image_style || st.video_style || st.tone || st.custom_instructions;
+                return `
+                <div class="nm-subtopic-row${hasOverrides ? ' expanded' : ''}" id="nmST_${i}">
+                    <div style="flex:1;">
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" class="form-control-dark" value="${esc(st.name)}" placeholder="Sub-topic name" oninput="_nmSubTopics[${i}].name=this.value" style="flex:1;padding:6px 10px;font-size:13px;">
+                            <button class="btn-ghost btn-sm" onclick="nmToggleSubTopicExpand(${i})" type="button" title="Style overrides" style="font-size:10px;padding:4px 8px;"><i class="fas fa-sliders-h"></i></button>
+                            <button class="btn-ghost btn-sm danger" onclick="nmRemoveSubTopic(${i})" type="button" title="Remove" style="font-size:10px;padding:4px 8px;"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="nm-subtopic-expand">
+                            <div class="row g-2" style="margin-top:4px;">
+                                <div class="col-md-6">
+                                    <label class="form-label" style="font-size:10px;">Image Style Override</label>
+                                    <input type="text" class="form-control-dark" value="${esc(st.image_style || '')}" placeholder="Inherit from niche" oninput="_nmSubTopics[${i}].image_style=this.value" style="font-size:12px;padding:5px 8px;">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" style="font-size:10px;">Video Style Override</label>
+                                    <input type="text" class="form-control-dark" value="${esc(st.video_style || '')}" placeholder="Inherit from niche" oninput="_nmSubTopics[${i}].video_style=this.value" style="font-size:12px;padding:5px 8px;">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" style="font-size:10px;">Tone Override</label>
+                                    <input type="text" class="form-control-dark" value="${esc(st.tone || '')}" placeholder="Inherit from niche" oninput="_nmSubTopics[${i}].tone=this.value" style="font-size:12px;padding:5px 8px;">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" style="font-size:10px;">Custom Instructions</label>
+                                    <input type="text" class="form-control-dark" value="${esc(st.custom_instructions || '')}" placeholder="Extra AI instructions…" oninput="_nmSubTopics[${i}].custom_instructions=this.value" style="font-size:12px;padding:5px 8px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
 
         async function loadNichePresets() {
             if (Object.keys(nichePresets).length > 0) return; // already loaded
@@ -2587,6 +3235,10 @@
             document.getElementById('nicheInput').value = name;
             document.getElementById('nicheImageStyle').value = p.image_style || '';
             document.getElementById('nicheVideoStyle').value = p.video_style || '';
+            _nsSelectedNiche = name;
+            _nsSelectedSubNiche = '';
+            // populate sub-topic dropdown from preset
+            _nsPopulateSubTopics(p.sub_topics || []);
             document.querySelectorAll('.niche-preset-card').forEach(c => c.classList.remove('selected'));
             el.classList.add('selected');
             toast(`Loaded "${name}" preset — styles auto-configured`, 'info');
@@ -2595,28 +3247,57 @@
         async function nicheGenerateTitles() {
             const niche = document.getElementById('nicheInput').value.trim();
             if (!niche) return toast('Enter a niche first', 'error');
-            const count = parseInt(document.getElementById('nicheTitleCount').value) || 15;
-            const subTopic = document.getElementById('nicheSubTopic').value.trim();
+            const count = parseInt(document.getElementById('nicheTitleCount').value) || 2;
+            const subTopic = document.getElementById('nicheSubTopic').value || '';
 
             document.getElementById('spinner').classList.add('show');
-            document.getElementById('spinnerSub').textContent = 'Generating viral titles with ' + getProviderLabel() + '…';
             document.getElementById('btnNicheTitles').disabled = true;
 
-            try {
-                const d = await api('/api/niche/generate-titles', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ niche, sub_topic: subTopic, num_titles: count, provider: currentProvider }),
-                });
-                if (d.success) {
-                    nicheTitles = d.titles;
-                    nicheShowTitles(d);
-                    toast(`Generated ${d.titles.length} viral titles!`, 'success');
-                } else {
-                    toast(d.message || 'Title generation failed', 'error');
+            // Determine which sub-topics to generate for
+            const nicheData = nmAllNiches[niche] || nichePresets[niche];
+            const allSubs = (nicheData && nicheData.sub_topics) ? nicheData.sub_topics : [];
+
+            if (!subTopic && allSubs.length > 0) {
+                // "All Sub-Topics" selected — generate for each sub-niche
+                document.getElementById('spinnerSub').textContent = `Generating ${count} titles × ${allSubs.length} sub-topics with ${getProviderLabel()}…`;
+                try {
+                    const d = await api('/api/niche/generate-titles-multi', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ niche, sub_topics: allSubs, num_titles: count, provider: currentProvider }),
+                    });
+                    if (d.success) {
+                        nicheTitles = d.titles;
+                        nicheShowTitles(d, true);
+                        const validCount = d.titles.filter(t => !t.error).length;
+                        toast(`Generated ${validCount} titles across ${d.sub_topic_count} sub-topics!`, 'success');
+                    } else {
+                        toast(d.message || 'Title generation failed', 'error');
+                    }
+                } catch (e) {
+                    toast('Error: ' + e.message, 'error');
                 }
-            } catch (e) {
-                toast('Error: ' + e.message, 'error');
+            } else {
+                // Single sub-topic or no sub-topics
+                document.getElementById('spinnerSub').textContent = 'Generating viral titles with ' + getProviderLabel() + '…';
+                try {
+                    const d = await api('/api/niche/generate-titles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ niche, sub_topic: subTopic, num_titles: count, provider: currentProvider }),
+                    });
+                    if (d.success) {
+                        // Tag each title with the sub_niche
+                        nicheTitles = d.titles.map(t => ({ ...t, sub_niche: subTopic }));
+                        d.titles = nicheTitles;
+                        nicheShowTitles(d, !!subTopic);
+                        toast(`Generated ${d.titles.length} viral titles!`, 'success');
+                    } else {
+                        toast(d.message || 'Title generation failed', 'error');
+                    }
+                } catch (e) {
+                    toast('Error: ' + e.message, 'error');
+                }
             }
             document.getElementById('spinner').classList.remove('show');
             document.getElementById('spinnerSub').textContent = 'This may take a moment';
@@ -2629,7 +3310,7 @@
             card.classList.toggle('is-selected', cb.checked);
             nicheUpdateSummary();
         }
-        function nicheShowTitles(data) {
+        function nicheShowTitles(data, hasSubNiches) {
             document.getElementById('nicheStep1').style.display = 'none';
             document.getElementById('nicheStep2').style.display = 'block';
             setNicheStepActive(2);
@@ -2643,22 +3324,59 @@
             if(countBadge) countBadge.textContent = data.titles.length + ' titles';
 
             const grid = document.getElementById('nicheTitleGrid');
-            grid.innerHTML = data.titles.map((t, i) => `
-                <div class="col-lg-6 col-xl-4">
-                    <div class="niche-title-card is-selected" data-index="${i}" onclick="nicheTitleCardClick(this, ${i})">
-                        <div class="niche-title-check-wrap">
-                            <input type="checkbox" class="form-check-input niche-title-check" checked data-index="${i}" onchange="event.stopPropagation();nicheUpdateSummary();this.closest('.niche-title-card').classList.toggle('is-selected',this.checked);" style="cursor:pointer;">
+
+            if (hasSubNiches) {
+                // Group titles by sub_niche
+                const groups = {};
+                data.titles.forEach((t, i) => {
+                    const sn = t.sub_niche || 'General';
+                    if (!groups[sn]) groups[sn] = [];
+                    groups[sn].push({ ...t, _idx: i });
+                });
+                let html = '';
+                for (const [subNiche, titles] of Object.entries(groups)) {
+                    html += `<div class="col-12"><div style="display:flex;align-items:center;gap:10px;margin:14px 0 8px 0;padding-bottom:8px;border-bottom:1px solid var(--border);">
+                        <span style="font-size:14px;font-weight:800;color:var(--accent);"><i class="fas fa-tag"></i> ${esc(subNiche)}</span>
+                        <span class="badge-accent" style="font-size:10px;">${titles.length} titles</span>
+                    </div></div>`;
+                    titles.forEach(t => {
+                        if (t.error) return;
+                        html += `<div class="col-lg-6 col-xl-4">
+                            <div class="niche-title-card is-selected" data-index="${t._idx}" data-subniche="${esc(t.sub_niche || '')}" onclick="nicheTitleCardClick(this, ${t._idx})">
+                                <div class="niche-title-check-wrap">
+                                    <input type="checkbox" class="form-check-input niche-title-check" checked data-index="${t._idx}" data-subniche="${esc(t.sub_niche || '')}" onchange="event.stopPropagation();nicheUpdateSummary();this.closest('.niche-title-card').classList.toggle('is-selected',this.checked);" style="cursor:pointer;">
+                                </div>
+                                <div class="niche-title-text">${esc(t.title)}</div>
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+                                    <span class="badge-hook">${esc(t.hook_angle)}</span>
+                                    <span class="badge-emotion">${esc(t.target_emotion)}</span>
+                                    <span style="font-size:9px;padding:2px 6px;border-radius:20px;background:rgba(240,164,68,.1);color:var(--accent);">${esc(t.sub_niche || '')}</span>
+                                </div>
+                                <div class="niche-title-brief">${esc(t.content_brief)}</div>
+                                <div class="niche-title-why"><i class="fas fa-check-circle me-1 text-green" style="font-size:10px;"></i>${esc(t.why_it_works)}</div>
+                            </div>
+                        </div>`;
+                    });
+                }
+                grid.innerHTML = html;
+            } else {
+                grid.innerHTML = data.titles.map((t, i) => `
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="niche-title-card is-selected" data-index="${i}" data-subniche="${esc(t.sub_niche || '')}" onclick="nicheTitleCardClick(this, ${i})">
+                            <div class="niche-title-check-wrap">
+                                <input type="checkbox" class="form-check-input niche-title-check" checked data-index="${i}" data-subniche="${esc(t.sub_niche || '')}" onchange="event.stopPropagation();nicheUpdateSummary();this.closest('.niche-title-card').classList.toggle('is-selected',this.checked);" style="cursor:pointer;">
+                            </div>
+                            <div class="niche-title-text">${esc(t.title)}</div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+                                <span class="badge-hook">${esc(t.hook_angle)}</span>
+                                <span class="badge-emotion">${esc(t.target_emotion)}</span>
+                            </div>
+                            <div class="niche-title-brief">${esc(t.content_brief)}</div>
+                            <div class="niche-title-why"><i class="fas fa-check-circle me-1 text-green" style="font-size:10px;"></i>${esc(t.why_it_works)}</div>
                         </div>
-                        <div class="niche-title-text">${esc(t.title)}</div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-                            <span class="badge-hook">${esc(t.hook_angle)}</span>
-                            <span class="badge-emotion">${esc(t.target_emotion)}</span>
-                        </div>
-                        <div class="niche-title-brief">${esc(t.content_brief)}</div>
-                        <div class="niche-title-why"><i class="fas fa-check-circle me-1 text-green" style="font-size:10px;"></i>${esc(t.why_it_works)}</div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+            }
 
             if (data.content_strategy_tips && data.content_strategy_tips.length) {
                 const tipsEl = document.getElementById('nicheStrategyTips');
@@ -2689,13 +3407,21 @@
         }
 
         function nicheUpdateSummary() {
-            const selected = document.querySelectorAll('.niche-title-check:checked').length;
+            const checked = document.querySelectorAll('.niche-title-check:checked');
+            const selected = checked.length;
             const total = document.querySelectorAll('.niche-title-check').length;
+            const subNiches = new Set();
+            checked.forEach(cb => { const sn = cb.dataset.subniche; if (sn) subNiches.add(sn); });
+            const snLine = subNiches.size > 1
+                ? `<div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-layer-group text-accent"></i><span style="color:var(--muted2);">${subNiches.size} sub-niches</span></div>`
+                : subNiches.size === 1
+                ? `<div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-layer-group text-accent"></i><span style="color:var(--muted2);">${[...subNiches][0]}</span></div>`
+                : '';
             document.getElementById('nichePipelineSummary').innerHTML = `
                 <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-video text-accent"></i><span><b style="color:var(--text);">${selected}</b> <span style="color:var(--muted);">/ ${total} titles selected</span></span></div>
-                <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-clock text-accent"></i><span style="color:var(--muted2);">Est. ~${Math.ceil(selected * 0.7)} min</span></div>
+                ${snLine}
                 <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-folder text-accent"></i><span style="color:var(--muted2);">${selected} complete video packages</span></div>
-                <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-file-alt text-accent"></i><span style="color:var(--muted2);">script · image prompts · video prompts · SEO</span></div>
+                <div style="display:flex;align-items:center;gap:8px;"><i class="fas fa-file-alt text-accent"></i><span style="color:var(--muted2);">script · image prompts · video prompts · i2v</span></div>
             `;
         }
 
@@ -2703,16 +3429,18 @@
             const selected = [];
             document.querySelectorAll('.niche-title-check:checked').forEach(cb => {
                 const idx = parseInt(cb.dataset.index);
-                if (nicheTitles[idx]) selected.push(nicheTitles[idx]);
+                const subNiche = cb.dataset.subniche || '';
+                if (nicheTitles[idx]) selected.push({ ...nicheTitles[idx], _subNiche: subNiche || nicheTitles[idx].sub_niche || '' });
             });
             if (!selected.length) return toast('Select at least one title', 'error');
 
             const niche = document.getElementById('nicheInput').value.trim();
             const items = selected.map(t => ({
                 title: t.title,
-                description: t.content_brief + (niche ? ' | Niche: ' + niche : ''),
+                description: t.content_brief + (niche ? ' | Niche: ' + niche : '') + (t._subNiche ? ' | Sub-niche: ' + t._subNiche : ''),
                 folder: t.title.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim().substring(0, 80),
                 transcript: '',
+                sub_niche: t._subNiche,
             }));
 
             const options = {
@@ -2733,7 +3461,7 @@
                 const d = await api('/api/niche/launch-pipeline', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ niche, items, options }),
+                    body: JSON.stringify({ niche, sub_niche: _nsSelectedSubNiche, items, options }),
                 });
                 if (d.success) {
                     nichePipelineJobId = d.job_id;
@@ -2863,6 +3591,137 @@
         }
 
         // ═══════════════════════════════════════════════════════════════════
+        // SETTINGS & API KEYS PAGE
+        // ═══════════════════════════════════════════════════════════════════
+        async function loadSettingsPage() {
+            try {
+                const d = await api('/api/keys');
+                if (!d.success) { toast(d.message || 'Failed to load keys', 'danger'); return; }
+
+                const g = d.gemini, c = d.claude;
+                const prov = d.active_provider || 'gemini';
+                const el = id => document.getElementById(id);
+                el('settingsActiveProvider').textContent = prov.charAt(0).toUpperCase() + prov.slice(1);
+                el('settingsGeminiCount').textContent = g.count;
+                el('settingsClaudeCount').textContent = c.count;
+                el('settingsGeminiWorkers').textContent = g.parallel_workers || 10;
+                el('settingsClaudeWorkers').textContent = c.parallel_workers || 1;
+                el('geminiKeyBadge').textContent = g.count + ' key' + (g.count !== 1 ? 's' : '');
+                el('claudeKeyBadge').textContent = c.count + ' key' + (c.count !== 1 ? 's' : '');
+
+                // Provider buttons
+                if (prov === 'gemini') {
+                    el('settingsBtnGemini').className = 'btn-accent btn-sm';
+                    el('settingsBtnClaude').className = 'btn-ghost btn-sm';
+                } else {
+                    el('settingsBtnGemini').className = 'btn-ghost btn-sm';
+                    el('settingsBtnClaude').className = 'btn-accent btn-sm';
+                }
+
+                // Render key lists
+                renderKeyList('geminiKeysList', g.keys, 'gemini');
+                renderKeyList('claudeKeysList', c.keys, 'claude');
+            } catch (e) {
+                toast('Error loading settings: ' + e.message, 'danger');
+            }
+        }
+
+        function renderKeyList(containerId, keys, provider) {
+            const container = document.getElementById(containerId);
+            if (!keys || !keys.length) {
+                container.innerHTML = `<div style="text-align:center;padding:18px;color:var(--muted);font-size:12px;background:rgba(255,255,255,.02);border-radius:8px;border:1px dashed rgba(255,255,255,.08);"><i class="fas fa-key" style="font-size:18px;display:block;margin-bottom:6px;opacity:.3;"></i>No keys configured</div>`;
+                return;
+            }
+            const isGemini = provider === 'gemini';
+            const color = isGemini ? 'var(--green)' : 'var(--purple)';
+            container.innerHTML = keys.map((k, i) => `
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:6px;margin-bottom:6px;border:1px solid rgba(255,255,255,.04);">
+                    <span style="width:22px;height:22px;border-radius:50%;background:${isGemini ? 'rgba(52,211,153,.1)' : 'rgba(167,139,250,.1)'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${color};">${i + 1}</span>
+                    <code style="flex:1;font-size:12px;color:var(--muted);letter-spacing:.5px;">${esc(k.masked)}</code>
+                    <button class="btn-ghost btn-sm danger" style="padding:2px 8px;font-size:10px;" onclick="settingsRemoveKey('${provider}', ${k.index})" title="Remove key"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            `).join('');
+        }
+
+        async function settingsAddKey(provider) {
+            const inputId = provider === 'gemini' ? 'newGeminiKey' : 'newClaudeKey';
+            const input = document.getElementById(inputId);
+            const key = input.value.trim();
+            if (!key) { toast('Please enter an API key', 'warning'); input.focus(); return; }
+
+            // Basic format validation
+            if (provider === 'gemini' && !key.startsWith('AIza')) {
+                toast('Gemini keys should start with "AIza..."', 'warning'); return;
+            }
+            if (provider === 'claude' && !key.startsWith('sk-ant-')) {
+                toast('Claude keys should start with "sk-ant-..."', 'warning'); return;
+            }
+
+            try {
+                const d = await api('/api/keys/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, key }) });
+                if (d.success) {
+                    input.value = '';
+                    toast(d.message || 'Key added successfully!', 'success');
+                    loadSettingsPage();
+                } else {
+                    toast(d.message || 'Failed to add key', 'danger');
+                }
+            } catch (e) {
+                toast('Error: ' + e.message, 'danger');
+            }
+        }
+
+        async function settingsRemoveKey(provider, index) {
+            if (!confirm(`Remove this ${provider} API key #${index + 1}?`)) return;
+            try {
+                const d = await api('/api/keys/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, index }) });
+                if (d.success) {
+                    toast(d.message || 'Key removed', 'success');
+                    loadSettingsPage();
+                } else {
+                    toast(d.message || 'Failed to remove key', 'danger');
+                }
+            } catch (e) {
+                toast('Error: ' + e.message, 'danger');
+            }
+        }
+
+        async function settingsTestKey(provider) {
+            const inputId = provider === 'gemini' ? 'newGeminiKey' : 'newClaudeKey';
+            const key = document.getElementById(inputId).value.trim();
+            if (!key) { toast('Enter a key first to test it', 'warning'); return; }
+
+            toast('Testing key...', 'info');
+            try {
+                const d = await api('/api/keys/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, key }) });
+                if (d.success) {
+                    toast('✓ Key is valid and working!', 'success');
+                } else {
+                    toast('✗ Key test failed: ' + (d.message || 'Invalid key'), 'danger');
+                }
+            } catch (e) {
+                toast('Error testing key: ' + e.message, 'danger');
+            }
+        }
+
+        async function settingsSwitchProvider(provider) {
+            try {
+                const d = await api('/api/provider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider }) });
+                if (d.success) {
+                    toast('Switched to ' + provider.charAt(0).toUpperCase() + provider.slice(1), 'success');
+                    loadSettingsPage();
+                    // Also update the main nav provider indicator if exists
+                    const provSel = document.querySelector('[name="provider"]');
+                    if (provSel) provSel.value = provider;
+                } else {
+                    toast(d.message || 'Failed to switch provider', 'danger');
+                }
+            } catch (e) {
+                toast('Error: ' + e.message, 'danger');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
         // LOGS PAGE
         // ═══════════════════════════════════════════════════════════════════
         async function loadLogs(mode) {
@@ -2893,6 +3752,22 @@
                 }
             } catch (e) {
                 el.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function clearLogs() {
+            if (!confirm('Clear all generation logs? This cannot be undone.')) return;
+            try {
+                const d = await api('/api/logs/clear', { method: 'POST' });
+                if (d.success) {
+                    toast('Logs cleared', 'success');
+                    document.getElementById('logsContent').textContent = 'Logs cleared.';
+                    document.getElementById('logsMeta').textContent = '';
+                } else {
+                    toast(d.message || 'Failed to clear logs', 'danger');
+                }
+            } catch (e) {
+                toast('Error: ' + e.message, 'danger');
             }
         }
 
@@ -3341,6 +4216,12 @@
                     window._initCache = d;
                     refreshTemplateDropdowns(d.templates);
                     if (d.provider) updateProviderUI(d.provider, d.available_providers);
+                    // Load niche manager data
+                    if (d.all_niches) {
+                        nmAllNiches = d.all_niches;
+                        nmRenderGrid();
+                        nmRefreshTemplateSelect();
+                    }
                 } else {
                     refreshTemplateDropdowns();
                 }

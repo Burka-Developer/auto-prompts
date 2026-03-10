@@ -1,0 +1,58 @@
+{
+    "Islamic Stories": {
+        "name": "Islamic Stories",
+        "description": "A cinematic storytelling channel dedicated to bringing the wisdom of Islamic history to life. We focus on the lives of the Prophets, the Sahaba, and profound parables from the Quran, utilizing AI-enhanced visuals and emotive narration to inspire and educate a modern audience.",
+        "image_style": "Midjourney-style cinematic realism, golden hour lighting, desert landscapes with deep shadows, intricate Islamic architecture, ethereal 8k textures, dust motes in sunlight, historical oil painting aesthetic.",
+        "video_style": "Slow-motion parallax, dramatic 3D zooms, subtle particle effects (sand/embers), smooth transitions, cinematic color grading (teals and ambers), minimalist captions.",
+        "tone": "Reverent, soulful, epic, reflective, and calm.",
+        "target_audience": "16–40, Muslims seeking spiritual reminders, history buffs, seekers of moral stories, and those interested in Middle Eastern heritage.",
+        "sub_topics": [
+            "Stories of the Prophets (Qisat al-Anbiya)",
+            "Sahaba Chronicles",
+            "Miracles of the Quran",
+            "Islamic Golden Age Achievements",
+            "Sufi Parables",
+            "Lessons from the Caliphs."
+        ],
+        "assigned_template": "",
+        "emoji": "✨",
+        "output_folder": ""
+    },
+    "Wealth Psychology & Millionaire Mindset": {
+        "name": "Wealth Psychology & Millionaire Mindset",
+        "description": "A faceless AI-powered YouTube channel that decodes the psychological \npatterns, habits, and mental frameworks of the ultra-wealthy. Content \nbridges financial education with behavioral psychology — exposing WHY \nrich people think differently, HOW they make decisions, and WHAT \ninvisible systems they use to build generational wealth. Every video \ndelivers actionable insight that transforms how the viewer sees money, \nstatus, and success.",
+        "image_style": "Cinematic noir photography, dramatic chiaroscuro lighting, deep shadows \nwith gold and amber highlights, luxury environments (penthouses, private \njets, marble floors), close-up shots of wealth symbols (watches, \nbriefcases, charts trending up), photorealistic AI faces showing \nconfidence and authority, dark navy/black backgrounds with glowing \naccent lighting, ultra-sharp 8K texture detail, Midjourney --style raw \n--ar 16:9 --q 2",
+        "video_style": "Slow cinematic dolly push-ins on wealth imagery, atmospheric smoke and \nlight ray effects, time-lapse city skylines at night, aerial drone shots \nof luxury real estate, slow-motion money and asset visuals, text \nkinetics with bold white typography on dark backgrounds, cross-dissolve \ntransitions, subtle gold particle overlays, Hans Zimmer-style \norchestral + lo-fi hip hop background score, color grade: teal and \norange with crushed blacks, pacing: 1 cut every 3–4 seconds to sustain \nretention",
+        "tone": "Authoritative, calm yet intense, mentor-like without being preachy,  psychologically provocative — asks questions that challenge the viewer's  beliefs about money, educational but conversational, uses pattern  interrupts every 60 seconds, speaks directly to the viewer (\"you\",  \"your\"), creates urgency without fear-mongering, storytelling-first  before delivering the lesson, voice of a trusted wealthy friend NOT a  salesman",
+        "target_audience": "Ages 18–45, predominantly male (70/30), aspiring entrepreneurs and  early-career professionals, frustrated 9-to-5 workers seeking financial  escape, first-generation wealth builders, college students studying  finance or business, crypto/investing beginners, fans of channels like  School of Hard Knocks / Graham Stephan / Andrei Jikh / Valuetainment —  psychographic: believes hard work alone isn't enough, seeks the  \"hidden knowledge\" the wealthy have that schools never taught",
+        "sub_topics": [
+            {
+                "name": "Millionaire Habits & Morning Routines"
+            },
+            {
+                "name": "Money Mistakes That Keep You Broke"
+            },
+            {
+                "name": "Wealth Building Strategies"
+            },
+            {
+                "name": "Entrepreneur Psychology"
+            },
+            {
+                "name": "Dark Side of Poverty Mindset"
+            },
+            {
+                "name": "Untold Stories of Self-Made Billionaires"
+            },
+            {
+                "name": "Financial Freedom Blueprints"
+            },
+            {
+                "name": "Street Interviews: What Rich People Know"
+            }
+        ],
+        "assigned_template": "",
+        "emoji": "💵",
+        "output_folder": ""
+    }
+}

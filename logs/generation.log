@@ -923,3 +923,49 @@ RuntimeError: No Gemini API keys configured.
 2026-03-08 16:03:28 | ERROR   | [CLAUDE-GEN] ALL 4 CYCLES EXHAUSTED. Last error: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 65536 > 64000, which is the maximum allowed number of output tokens for claude-haiku-4-5-20251001'}, 'request_id': 'req_011CYqW2Z5UMGR9VQQe2kudj'}
 2026-03-08 16:03:28 | ERROR   | [BULK 8c3e6976] ── Item 5/5 FAILED ── 'Silent Signs You're Being Psychologically Controlled' | type=UNKNOWN | 63.2s | error=Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'max_tokens: 65536 > 64000, which is the maximum allowed number of output tokens for claude-haiku-4-5-20251001'}, 'request_id': 'req_011CYqW2Z5UMGR9VQQe2kudj'}
 2026-03-08 16:03:28 | INFO    | [BULK 8c3e6976] ═══ JOB FINISHED ═══ completed=0 | failed=5 | total=5
+2026-03-10 06:42:00 | INFO    | Starting YouTube Automation Tool on http://localhost:5000
+2026-03-10 07:14:41 | INFO    | ╔══════════════════════════════════════════════════════════╗
+2026-03-10 07:14:41 | INFO    | ║            YT Automation — Provider Status              ║
+2026-03-10 07:14:41 | INFO    | ╠══════════════════════════════════════════════════════════╣
+2026-03-10 07:14:41 | INFO    | ║  Gemini keys : 1    │  Parallel workers : 10           ║
+2026-03-10 07:14:41 | INFO    | ║    Key #1: AIzaSyBiUK1s...0tZk                                          ║
+2026-03-10 07:14:41 | INFO    | ║  Claude keys : 1    │  Sequential worker : 1            ║
+2026-03-10 07:14:41 | INFO    | ║    Key #1: sk-ant-api03-th8...ZQAA                                     ║
+2026-03-10 07:14:41 | INFO    | ║  Default provider: GEMINI                               ║
+2026-03-10 07:14:41 | INFO    | ╚══════════════════════════════════════════════════════════╝
+2026-03-10 07:14:41 | INFO    | Starting YouTube Automation Tool on http://localhost:5000
+2026-03-10 07:58:14 | INFO    | ╔══════════════════════════════════════════════════════════╗
+2026-03-10 07:58:14 | INFO    | ║            YT Automation — Provider Status              ║
+2026-03-10 07:58:14 | INFO    | ╠══════════════════════════════════════════════════════════╣
+2026-03-10 07:58:14 | INFO    | ║  Gemini keys : 1    │  Parallel workers : 10           ║
+2026-03-10 07:58:14 | INFO    | ║    Key #1: AIzaSyBiUK1s...0tZk                                          ║
+2026-03-10 07:58:14 | INFO    | ║  Claude keys : 1    │  Sequential worker : 1            ║
+2026-03-10 07:58:14 | INFO    | ║    Key #1: sk-ant-api03-th8...ZQAA                                     ║
+2026-03-10 07:58:14 | INFO    | ║  Default provider: GEMINI                               ║
+2026-03-10 07:58:14 | INFO    | ╚══════════════════════════════════════════════════════════╝
+2026-03-10 07:58:14 | INFO    | Starting YouTube Automation Tool on http://localhost:5000
+2026-03-10 08:15:45 | INFO    | [TITLES] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-10 08:16:08 | INFO    | [TITLES] SUCCESS — 5 titles | key=...0tZk | cycle 1
+2026-03-10 08:17:25 | INFO    | [BULK 9afcbd82] Starting parallel processing — 5 items | workers=10 | provider=gemini
+2026-03-10 08:17:25 | INFO    | Niche pipeline 9afcbd82 started: 5 videos for 'Wealth Psychology & Millionaire Mindset'
+2026-03-10 08:17:25 | INFO    | [BULK 9afcbd82] ── Item 1/5 START ── 'SHOCKING Truth: Why 99% Fail to Build Wealth (Hidden Psychology)'
+2026-03-10 08:17:25 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-10 08:17:25 | INFO    | [BULK 9afcbd82] ── Item 2/5 START ── 'STOP Procrastinating Your Wealth: 7 Mindset Shifts You NEED NOW [Urgent]'
+2026-03-10 08:17:25 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-10 08:17:25 | INFO    | [BULK 9afcbd82] ── Item 3/5 START ── 'Psychologists Reveal: The Brutal Truth About Money & Happiness [Backed by Science]'
+2026-03-10 08:17:26 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-10 08:17:26 | INFO    | [BULK 9afcbd82] ── Item 4/5 START ── 'The SILENT Killer of Millionaire Dreams: Avoid This Deadly Trap [Wealth Psychology]'
+2026-03-10 08:17:26 | INFO    | [BULK 9afcbd82] ── Item 5/5 START ── 'Genius Habits: How ONLY 1% Think Differently About Wealth [Mindset Secrets]'
+2026-03-10 08:17:26 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-10 08:17:26 | INFO    | [GEN] Calling gemini-2.5-flash | key=...0tZk | cycle 1/4 | keys_ok=1/1
+2026-03-10 08:18:21 | INFO    | [GEN] SUCCESS — 11 scenes | key=...0tZk | cycle 1 | latency=54.8s
+2026-03-10 08:18:21 | INFO    | [BULK 9afcbd82] ── Item 5/5 DONE ── 'Genius Habits: How ONLY 1% Think Differently About Wealth [Mindset Secrets]' | 11 scenes | 55.5s
+2026-03-10 08:18:42 | INFO    | [GEN] SUCCESS — 12 scenes | key=...0tZk | cycle 1 | latency=77.1s
+2026-03-10 08:18:42 | INFO    | [BULK 9afcbd82] ── Item 2/5 DONE ── 'STOP Procrastinating Your Wealth: 7 Mindset Shifts You NEED NOW [Urgent]' | 12 scenes | 77.5s
+2026-03-10 08:19:00 | INFO    | [GEN] SUCCESS — 11 scenes | key=...0tZk | cycle 1 | latency=94.2s
+2026-03-10 08:19:00 | INFO    | [BULK 9afcbd82] ── Item 3/5 DONE ── 'Psychologists Reveal: The Brutal Truth About Money & Happiness [Backed by Science]' | 11 scenes | 94.3s
+2026-03-10 08:19:01 | INFO    | [GEN] SUCCESS — 14 scenes | key=...0tZk | cycle 1 | latency=94.6s
+2026-03-10 08:19:01 | INFO    | [BULK 9afcbd82] ── Item 4/5 DONE ── 'The SILENT Killer of Millionaire Dreams: Avoid This Deadly Trap [Wealth Psychology]' | 14 scenes | 95.5s
+2026-03-10 08:19:04 | INFO    | [GEN] SUCCESS — 15 scenes | key=...0tZk | cycle 1 | latency=99.2s
+2026-03-10 08:19:04 | INFO    | [BULK 9afcbd82] ── Item 1/5 DONE ── 'SHOCKING Truth: Why 99% Fail to Build Wealth (Hidden Psychology)' | 15 scenes | 99.4s
+2026-03-10 08:19:04 | INFO    | [BULK 9afcbd82] ═══ JOB FINISHED ═══ completed=5 | failed=0 | total=5
