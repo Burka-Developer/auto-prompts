@@ -6,3 +6,4 @@ python-dotenv>=1.0.0
 openpyxl>=3.1.0
 uvicorn>=0.29.0
 asgiref>=3.7.0
+PyPDF2>=3.0.0
