@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 .env
+output/
+uploads/
+logs/
+template_studio_data.json

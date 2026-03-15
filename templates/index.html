@@ -902,6 +902,11 @@
                 <div class="nav-icon"><i class="fas fa-images"></i></div>
                 <span>Adobe Stock</span>
             </div>
+            <div class="nav-item" data-page="template-studio">
+                <div class="nav-icon"><i class="fas fa-file-pdf"></i></div>
+                <span>Template Studio</span>
+                <span class="nav-badge">NEW</span>
+            </div>
         </div>
 
         <div class="nav-group">
@@ -1800,6 +1805,185 @@
             </div>
         </div>
 
+        <!-- ─── PAGE: Template Studio ─── -->
+        <div class="page" id="page-template-studio" style="display:none;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2><span class="header-icon"><i class="fas fa-file-pdf"></i></span> Template Studio</h2>
+                    <p>Upload a PDF prompt template and auto-generate content through the full pipeline</p>
+                </div>
+            </div>
+
+            <!-- Steps indicator -->
+            <div class="steps-bar">
+                <div class="step-item active" id="tsStep1Ind">
+                    <div class="step-num">1</div>
+                    <span>Upload PDF</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="tsStep2Ind">
+                    <div class="step-num">2</div>
+                    <span>Select Titles</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="step-item" id="tsStep3Ind">
+                    <div class="step-num">3</div>
+                    <span>Pipeline</span>
+                </div>
+            </div>
+
+            <!-- Step 1: Upload PDF -->
+            <div id="tsStep1">
+                <div class="row g-4">
+                    <div class="col-lg-7">
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-cloud-upload-alt"></i> Upload Prompt Template PDF</div>
+                            <div class="mb-3">
+                                <label class="form-label">Niche Name <span class="required">*</span></label>
+                                <input type="text" class="form-control-dark" id="tsNicheName" placeholder="e.g. Dark Psychology, Stoicism, Islamic Stories…">
+                            </div>
+                            <div class="drop-zone" id="tsDropZone"
+                                 ondragover="event.preventDefault();this.classList.add('active');"
+                                 ondragleave="this.classList.remove('active');"
+                                 ondrop="event.preventDefault();this.classList.remove('active');tsHandleDrop(event);"
+                                 onclick="document.getElementById('tsFileInput').click();">
+                                <i class="fas fa-file-pdf dz-icon" style="color:var(--accent);"></i>
+                                <div class="dz-title">Drop your PDF template here</div>
+                                <div class="dz-sub">or click to browse • PDF files only</div>
+                                <div id="tsFileName" style="margin-top:8px;font-weight:600;color:var(--accent);display:none;"></div>
+                            </div>
+                            <input type="file" id="tsFileInput" accept=".pdf" style="display:none;" onchange="tsFileSelected(this);">
+                            <div class="info-box" style="margin-top:16px;">
+                                <p><b>PDF Template Format:</b> Your PDF should contain labelled sections for the prompt templates.</p>
+                                <p>Recognized sections: <code>Image Generation</code>, <code>Video Generation</code>, <code>Thumbnail</code>, <code>Title Generation</code></p>
+                                <p>The system will automatically detect and extract each section. If no sections are found, the entire PDF text will be used as context.</p>
+                            </div>
+                            <button class="btn-accent w-100 btn-lg" style="margin-top:16px;" id="btnTsUpload" onclick="tsUploadPdf()" disabled>
+                                <i class="fas fa-upload"></i> Upload & Parse Template
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="card-dark" id="tsParsedPreview" style="display:none;">
+                            <div class="card-title"><i class="fas fa-check-circle" style="color:var(--green);"></i> Parsed Template</div>
+                            <div id="tsParsedContent"></div>
+                            <hr class="divider">
+                            <div class="mb-3">
+                                <label class="form-label">Title Count</label>
+                                <input type="number" class="form-control-dark" id="tsTitleCount" value="15" min="5" max="30">
+                            </div>
+                            <button class="btn-accent w-100 btn-lg" id="btnTsGenTitles" onclick="tsGenerateTitles()">
+                                <i class="fas fa-bolt"></i> Generate 15 Titles
+                            </button>
+                        </div>
+
+                        <!-- Previously uploaded templates -->
+                        <div class="card-dark" style="margin-top:16px;">
+                            <div class="card-title"><i class="fas fa-history"></i> Previous Templates</div>
+                            <div id="tsPrevTemplates" style="max-height:280px;overflow-y:auto;">
+                                <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">
+                                    <i class="fas fa-inbox" style="font-size:20px;opacity:.3;display:block;margin-bottom:8px;"></i>
+                                    No templates uploaded yet
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Title Results + Config -->
+            <div id="tsStep2" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                    <div class="card-title" style="margin:0;"><i class="fas fa-fire text-accent"></i> Generated Titles <span id="tsTitleCount2" class="badge-accent"></span></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn-ghost btn-sm" onclick="tsToggleAll(true)"><i class="fas fa-check-double"></i> All</button>
+                        <button class="btn-ghost btn-sm" onclick="tsToggleAll(false)"><i class="fas fa-square"></i> None</button>
+                        <button class="btn-ghost btn-sm" onclick="tsBackToStep1()"><i class="fas fa-arrow-left"></i> Back</button>
+                    </div>
+                </div>
+                <div class="niche-analysis-box" id="tsAnalysis"></div>
+                <div class="row g-3 mb-4" id="tsTitleGrid" style="max-height:580px;overflow-y:auto;"></div>
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card-dark">
+                            <div class="card-title"><i class="fas fa-palette"></i> Style Configuration</div>
+                            <div class="mb-3">
+                                <label class="form-label">Image Style <span class="opt">from PDF</span></label>
+                                <input type="text" class="form-control-dark" id="tsImageStyle" placeholder="Auto-detected from PDF template…">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Video Style <span class="opt">from PDF</span></label>
+                                <input type="text" class="form-control-dark" id="tsVideoStyle" placeholder="Auto-detected from PDF template…">
+                            </div>
+                            <hr class="divider">
+                            <div class="card-title" style="font-size:12px;"><i class="fas fa-cog"></i> Generation Options</div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" id="tsChkImages" checked><label class="form-check-label" for="tsChkImages">Image prompts</label></div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" id="tsChkVideos" checked><label class="form-check-label" for="tsChkVideos">Video prompts</label></div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" id="tsChkDialogue"><label class="form-check-label" for="tsChkDialogue">Dialogue</label></div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check"><input class="form-check-input" type="checkbox" id="tsChkI2V"><label class="form-check-label" for="tsChkI2V">Image-to-video</label></div>
+                                </div>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-4"><label class="form-label">Images</label><input type="number" class="form-control-dark" id="tsNumImages" placeholder="Auto" min="0" max="200"></div>
+                                <div class="col-4"><label class="form-label">Videos</label><input type="number" class="form-control-dark" id="tsNumVideos" placeholder="Auto" min="0" max="200"></div>
+                                <div class="col-4"><label class="form-label">I2V</label><input type="number" class="form-control-dark" id="tsNumI2V" placeholder="Auto" min="0" max="200"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="launch-panel h-100">
+                            <div class="card-title" style="color:var(--accent);margin-bottom:16px;"><i class="fas fa-rocket"></i> Launch Pipeline</div>
+                            <div id="tsPipelineSummary" style="margin-bottom:20px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                            <button class="btn-accent w-100 btn-lg" id="btnTsPipeline" onclick="tsLaunchPipeline()"><i class="fas fa-play"></i> Generate Everything</button>
+                            <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">Script · Image prompts · Video prompts · SEO · Folder per title</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Pipeline Progress -->
+            <div id="tsStep3" style="display:none;">
+                <div class="card-dark">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+                        <div class="card-title" style="margin-bottom:0;"><i class="fas fa-tasks"></i> Pipeline Running <span id="tsJobId" class="badge-accent" style="margin-left:8px;"></span></div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-ghost btn-sm" id="btnTsPause" onclick="tsPausePipeline()"><i class="fas fa-pause"></i> Pause</button>
+                            <button class="btn-ghost btn-sm success" id="btnTsResume" onclick="tsResumePipeline()" style="display:none;"><i class="fas fa-play"></i> Resume</button>
+                            <button class="btn-ghost btn-sm danger" onclick="tsCancelPipeline()"><i class="fas fa-stop"></i> Cancel</button>
+                        </div>
+                    </div>
+                    <div class="prog-track mb-2"><div id="tsProgressBar" class="prog-fill" style="width:0%;"></div></div>
+                    <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(61,214,140,.12);color:var(--green);"><i class="fas fa-check-circle"></i></div>
+                            <div><div class="chip-val text-green" id="tsDoneCount">0</div><div class="chip-label">Done</div></div>
+                        </div>
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(255,92,92,.12);color:var(--red);"><i class="fas fa-times-circle"></i></div>
+                            <div><div class="chip-val text-red" id="tsFailCount">0</div><div class="chip-label">Failed</div></div>
+                        </div>
+                        <div class="stat-chip" style="flex:1;min-width:120px;">
+                            <div class="chip-icon" style="background:rgba(255,255,255,.06);color:var(--muted2);"><i class="fas fa-list"></i></div>
+                            <div><div class="chip-val" id="tsTotalCount">0</div><div class="chip-label">Total</div></div>
+                        </div>
+                        <div style="margin-left:auto;align-self:center;font-weight:700;font-size:14px;" id="tsStatusLabel" class="text-accent">Running…</div>
+                    </div>
+                    <div style="max-height:420px;overflow-y:auto;" id="tsItemsList"></div>
+                    <div id="tsCompletedActions" style="display:none;margin-top:18px;" class="d-flex gap-2">
+                        <button class="btn-ghost" onclick="tsNewBatch()"><i class="fas fa-plus"></i> New Batch</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ─── PAGE: Adobe Stock Pipeline ─── -->
         <div class="page" id="page-adobe" style="display:none;">
             <div class="page-header">
@@ -2117,6 +2301,7 @@
                 if (pg === 'folder-creator') refreshTemplateDropdowns();
                 if (pg === 'settings') loadSettingsPage();
                 if (pg === 'logs') loadLogs('all');
+                if (pg === 'template-studio') tsLoadPrevTemplates();
                 if (pg !== 'niche') {
                     if (nichePollTimer) { clearInterval(nichePollTimer); nichePollTimer = null; }
                     if (nicheEventSource) { nicheEventSource.close(); nicheEventSource = null; }
@@ -4204,6 +4389,433 @@
             const el = document.getElementById('spinnerText');
             if (el) el.textContent = msg || ('Generating with ' + getProviderLabel() + '…');
             document.getElementById('spinner').classList.add('show');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // TEMPLATE STUDIO — PDF Upload Pipeline
+        // ═══════════════════════════════════════════════════════════════════
+        let tsCurrentFile = null;
+        let tsCurrentTemplateId = null;
+        let tsTitles = [];
+        let tsJobId = null;
+        let tsEventSource = null;
+        let tsPollTimer = null;
+
+        function tsHandleDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) tsSetFile(files[0]);
+        }
+
+        function tsFileSelected(input) {
+            if (input.files.length > 0) tsSetFile(input.files[0]);
+        }
+
+        function tsSetFile(file) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                toast('Only PDF files are supported', 'error');
+                return;
+            }
+            tsCurrentFile = file;
+            const nameEl = document.getElementById('tsFileName');
+            nameEl.textContent = file.name;
+            nameEl.style.display = 'block';
+            document.getElementById('btnTsUpload').disabled = !document.getElementById('tsNicheName').value.trim();
+        }
+
+        // Enable upload button when niche name entered
+        document.addEventListener('input', (e) => {
+            if (e.target.id === 'tsNicheName') {
+                document.getElementById('btnTsUpload').disabled = !(tsCurrentFile && e.target.value.trim());
+            }
+        });
+
+        async function tsUploadPdf() {
+            const niche = document.getElementById('tsNicheName').value.trim();
+            if (!niche) return toast('Niche name is required', 'error');
+            if (!tsCurrentFile) return toast('Please select a PDF file', 'error');
+
+            const fd = new FormData();
+            fd.append('file', tsCurrentFile);
+            fd.append('niche_name', niche);
+
+            showSpinner('Parsing PDF template…');
+            document.getElementById('btnTsUpload').disabled = true;
+
+            try {
+                const res = await fetch('/api/template-studio/upload', { method: 'POST', body: fd });
+                const d = await res.json();
+
+                if (!d.success) {
+                    toast(d.message || 'Upload failed', 'error');
+                    document.getElementById('btnTsUpload').disabled = false;
+                    return;
+                }
+
+                tsCurrentTemplateId = d.template_id;
+                toast('Template parsed successfully!', 'success');
+
+                // Show parsed preview
+                const preview = document.getElementById('tsParsedPreview');
+                preview.style.display = 'block';
+
+                let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+                const sections = [
+                    { key: 'has_image', label: 'Image Prompts', icon: 'fa-image', color: 'var(--blue)' },
+                    { key: 'has_video', label: 'Video Prompts', icon: 'fa-video', color: 'var(--green)' },
+                    { key: 'has_thumbnail', label: 'Thumbnail', icon: 'fa-th-large', color: 'var(--accent2)' },
+                    { key: 'has_title', label: 'Title Generation', icon: 'fa-heading', color: 'var(--accent)' },
+                ];
+                sections.forEach(s => {
+                    const found = d[s.key];
+                    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${found ? 'rgba(61,214,140,.08)' : 'rgba(255,92,92,.06)'};border:1px solid ${found ? 'rgba(61,214,140,.18)' : 'rgba(255,92,92,.15)'};border-radius:8px;">
+                        <i class="fas ${s.icon}" style="color:${s.color};width:20px;text-align:center;"></i>
+                        <span style="flex:1;font-size:13px;font-weight:600;">${s.label}</span>
+                        <span style="font-size:11px;font-weight:700;color:${found ? 'var(--green)' : 'var(--red)'};">${found ? '✓ Detected' : '✗ Not found'}</span>
+                    </div>`;
+                });
+                html += '</div>';
+
+                if (d.raw_preview) {
+                    html += `<div style="margin-top:14px;">
+                        <label class="form-label">RAW PREVIEW</label>
+                        <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;max-height:160px;overflow-y:auto;font-size:12px;color:var(--muted2);white-space:pre-wrap;line-height:1.5;">${esc(d.raw_preview.substring(0, 800))}${d.raw_preview.length > 800 ? '…' : ''}</div>
+                    </div>`;
+                }
+
+                document.getElementById('tsParsedContent').innerHTML = html;
+                tsLoadPrevTemplates();
+            } catch (e) {
+                toast('Upload error: ' + e.message, 'error');
+                document.getElementById('btnTsUpload').disabled = false;
+            } finally {
+                document.getElementById('spinner').classList.remove('show');
+            }
+        }
+
+        async function tsLoadPrevTemplates() {
+            try {
+                const d = await api('/api/template-studio/templates');
+                if (!d.success || !d.templates.length) return;
+                const container = document.getElementById('tsPrevTemplates');
+                container.innerHTML = d.templates.map(t => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;"
+                         onclick="tsLoadPrevTemplate('${t.id}')">
+                        <i class="fas fa-file-pdf" style="color:var(--accent);"></i>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.niche_name)}</div>
+                            <div style="font-size:11px;color:var(--muted);">${esc(t.filename)} · ${new Date(t.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div style="display:flex;gap:4px;">
+                            ${t.has_image ? '<i class="fas fa-image" style="font-size:10px;color:var(--blue);" title="Image prompts"></i>' : ''}
+                            ${t.has_video ? '<i class="fas fa-video" style="font-size:10px;color:var(--green);" title="Video prompts"></i>' : ''}
+                            ${t.has_title ? '<i class="fas fa-heading" style="font-size:10px;color:var(--accent);" title="Title prompts"></i>' : ''}
+                        </div>
+                        <button class="btn-icon" style="width:24px;height:24px;font-size:10px;" onclick="event.stopPropagation();tsDeleteTemplate('${t.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('');
+            } catch (e) { /* ignore */ }
+        }
+
+        async function tsLoadPrevTemplate(tid) {
+            try {
+                const d = await api('/api/template-studio/templates/' + tid);
+                if (!d.success) return toast('Failed to load template', 'error');
+                const t = d.template;
+                tsCurrentTemplateId = tid;
+                document.getElementById('tsNicheName').value = t.niche_name;
+                document.getElementById('tsParsedPreview').style.display = 'block';
+
+                let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+                [
+                    { key: 'image_template', label: 'Image Prompts', icon: 'fa-image', color: 'var(--blue)' },
+                    { key: 'video_template', label: 'Video Prompts', icon: 'fa-video', color: 'var(--green)' },
+                    { key: 'thumbnail_template', label: 'Thumbnail', icon: 'fa-th-large', color: 'var(--accent2)' },
+                    { key: 'title_template', label: 'Title Generation', icon: 'fa-heading', color: 'var(--accent)' },
+                ].forEach(s => {
+                    const found = !!t[s.key];
+                    html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${found ? 'rgba(61,214,140,.08)' : 'rgba(255,92,92,.06)'};border:1px solid ${found ? 'rgba(61,214,140,.18)' : 'rgba(255,92,92,.15)'};border-radius:8px;">
+                        <i class="fas ${s.icon}" style="color:${s.color};width:20px;text-align:center;"></i>
+                        <span style="flex:1;font-size:13px;font-weight:600;">${s.label}</span>
+                        <span style="font-size:11px;font-weight:700;color:${found ? 'var(--green)' : 'var(--red)'};">${found ? '✓ Detected' : '✗ Not found'}</span>
+                    </div>`;
+                });
+                html += '</div>';
+                document.getElementById('tsParsedContent').innerHTML = html;
+                toast('Template loaded: ' + t.niche_name, 'success');
+            } catch (e) { toast('Error: ' + e.message, 'error'); }
+        }
+
+        async function tsDeleteTemplate(tid) {
+            if (!confirm('Delete this template?')) return;
+            try {
+                await api('/api/template-studio/templates/' + tid, { method: 'DELETE' });
+                toast('Template deleted', 'success');
+                tsLoadPrevTemplates();
+                if (tsCurrentTemplateId === tid) tsCurrentTemplateId = null;
+            } catch (e) { toast('Error: ' + e.message, 'error'); }
+        }
+
+        async function tsGenerateTitles() {
+            if (!tsCurrentTemplateId) return toast('Upload a PDF template first', 'error');
+            const num = parseInt(document.getElementById('tsTitleCount').value) || 15;
+
+            showSpinner('Generating ' + num + ' viral titles…');
+            document.getElementById('btnTsGenTitles').disabled = true;
+
+            try {
+                const d = await api('/api/template-studio/generate-titles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ template_id: tsCurrentTemplateId, num_titles: num, provider: currentProvider }),
+                });
+
+                if (!d.success) {
+                    toast(d.message || 'Title generation failed', 'error');
+                    return;
+                }
+
+                tsTitles = d.titles || [];
+                tsShowStep(2);
+
+                // Show analysis
+                let analysisHtml = '';
+                if (d.niche_analysis) analysisHtml += `<div style="margin-bottom:8px;"><b style="color:var(--accent);">Niche Analysis:</b> ${esc(d.niche_analysis)}</div>`;
+                if (d.audience_profile) analysisHtml += `<div><b style="color:var(--accent);">Audience:</b> ${esc(d.audience_profile)}</div>`;
+                document.getElementById('tsAnalysis').innerHTML = analysisHtml;
+                document.getElementById('tsAnalysis').style.display = analysisHtml ? 'block' : 'none';
+
+                // Render title cards
+                document.getElementById('tsTitleCount2').textContent = tsTitles.length;
+                const grid = document.getElementById('tsTitleGrid');
+                grid.innerHTML = tsTitles.map((t, i) => `
+                    <div class="col-md-6">
+                        <div class="niche-title-card" style="cursor:pointer;" onclick="this.querySelector('input').click();">
+                            <div style="display:flex;align-items:flex-start;gap:10px;">
+                                <input type="checkbox" class="form-check-input ts-title-check" data-idx="${i}" checked style="margin-top:3px;flex-shrink:0;" onclick="event.stopPropagation();tsUpdateSummary();">
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-weight:700;font-size:14px;margin-bottom:6px;line-height:1.4;">${esc(t.title)}</div>
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+                                        <span class="badge-accent" style="font-size:10px;">${esc(t.hook_angle || '')}</span>
+                                        <span style="font-size:10px;padding:2px 8px;background:rgba(91,141,238,.12);color:var(--blue);border-radius:99px;font-weight:600;">${esc(t.target_emotion || '')}</span>
+                                    </div>
+                                    <div style="font-size:12px;color:var(--muted2);line-height:1.5;">${esc(t.content_brief || '')}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                tsUpdateSummary();
+                toast(`Generated ${tsTitles.length} titles!`, 'success');
+            } catch (e) {
+                toast('Error: ' + e.message, 'error');
+            } finally {
+                document.getElementById('spinner').classList.remove('show');
+                document.getElementById('btnTsGenTitles').disabled = false;
+            }
+        }
+
+        function tsToggleAll(state) {
+            document.querySelectorAll('.ts-title-check').forEach(cb => cb.checked = state);
+            tsUpdateSummary();
+        }
+
+        function tsUpdateSummary() {
+            const checked = document.querySelectorAll('.ts-title-check:checked').length;
+            const total = document.querySelectorAll('.ts-title-check').length;
+            const el = document.getElementById('tsPipelineSummary');
+            el.innerHTML = `
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted2);">Selected titles:</span><span style="font-weight:700;">${checked} / ${total}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted2);">Template:</span><span style="font-weight:700;">${esc(document.getElementById('tsNicheName').value || 'N/A')}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted2);">Provider:</span><span style="font-weight:700;">${getProviderLabel()}</span></div>
+            `;
+            document.getElementById('btnTsPipeline').disabled = checked === 0;
+        }
+
+        function tsBackToStep1() { tsShowStep(1); }
+
+        function tsShowStep(step) {
+            document.getElementById('tsStep1').style.display = step === 1 ? 'block' : 'none';
+            document.getElementById('tsStep2').style.display = step === 2 ? 'block' : 'none';
+            document.getElementById('tsStep3').style.display = step === 3 ? 'block' : 'none';
+            ['tsStep1Ind','tsStep2Ind','tsStep3Ind'].forEach((id, i) => {
+                const el = document.getElementById(id);
+                el.classList.toggle('active', i < step);
+                el.classList.toggle('done', i < step - 1);
+            });
+        }
+
+        async function tsLaunchPipeline() {
+            const checked = [];
+            document.querySelectorAll('.ts-title-check:checked').forEach(cb => {
+                const idx = parseInt(cb.dataset.idx);
+                if (tsTitles[idx]) checked.push(tsTitles[idx]);
+            });
+            if (!checked.length) return toast('Select at least one title', 'error');
+
+            const items = checked.map(t => ({
+                title: t.title,
+                description: t.content_brief || '',
+                transcript: '',
+                folder: '',
+            }));
+
+            const options = {
+                provider: currentProvider,
+                include_dialogue: document.getElementById('tsChkDialogue').checked,
+                gen_image_prompts: document.getElementById('tsChkImages').checked,
+                gen_video_prompts: document.getElementById('tsChkVideos').checked,
+                gen_i2v_prompts: document.getElementById('tsChkI2V').checked,
+                num_image_prompts: parseInt(document.getElementById('tsNumImages').value) || 0,
+                num_video_prompts: parseInt(document.getElementById('tsNumVideos').value) || 0,
+                num_i2v_prompts: parseInt(document.getElementById('tsNumI2V').value) || 0,
+                image_style: document.getElementById('tsImageStyle').value.trim(),
+                video_style: document.getElementById('tsVideoStyle').value.trim(),
+            };
+
+            showSpinner('Launching pipeline…');
+            document.getElementById('btnTsPipeline').disabled = true;
+
+            try {
+                const d = await api('/api/template-studio/launch-pipeline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        template_id: tsCurrentTemplateId,
+                        items,
+                        options,
+                    }),
+                });
+
+                if (!d.success) {
+                    toast(d.message || 'Pipeline launch failed', 'error');
+                    document.getElementById('btnTsPipeline').disabled = false;
+                    return;
+                }
+
+                tsJobId = d.job_id;
+                tsShowStep(3);
+                document.getElementById('tsJobId').textContent = '#' + tsJobId;
+                document.getElementById('tsTotalCount').textContent = d.total;
+                document.getElementById('tsDoneCount').textContent = '0';
+                document.getElementById('tsFailCount').textContent = '0';
+                document.getElementById('tsStatusLabel').textContent = 'Running…';
+                document.getElementById('tsProgressBar').style.width = '0%';
+                document.getElementById('tsItemsList').innerHTML = '';
+                document.getElementById('tsCompletedActions').style.display = 'none';
+
+                tsPollPipeline(tsJobId);
+                toast('Pipeline started!', 'success');
+            } catch (e) {
+                toast('Error: ' + e.message, 'error');
+                document.getElementById('btnTsPipeline').disabled = false;
+            } finally {
+                document.getElementById('spinner').classList.remove('show');
+            }
+        }
+
+        function tsPollPipeline(jid) {
+            if (tsEventSource) { tsEventSource.close(); tsEventSource = null; }
+            if (tsPollTimer) { clearInterval(tsPollTimer); tsPollTimer = null; }
+
+            try {
+                tsEventSource = new EventSource('/api/bulk/events/' + jid);
+                tsEventSource.onmessage = (e) => {
+                    try {
+                        const ev = JSON.parse(e.data);
+                        tsHandlePipelineEvent(ev);
+                    } catch (err) { /* ignore parse errors */ }
+                };
+                tsEventSource.onerror = () => {
+                    tsEventSource.close();
+                    tsEventSource = null;
+                    tsPollTimer = setInterval(() => tsPollStatus(jid), 3000);
+                };
+            } catch (err) {
+                tsPollTimer = setInterval(() => tsPollStatus(jid), 3000);
+            }
+        }
+
+        async function tsPollStatus(jid) {
+            try {
+                const d = await api('/api/bulk/status/' + jid);
+                if (d.success) {
+                    document.getElementById('tsDoneCount').textContent = d.completed_count || 0;
+                    document.getElementById('tsFailCount').textContent = d.failed_count || 0;
+                    document.getElementById('tsProgressBar').style.width = (d.progress || 0) + '%';
+                    if (d.status === 'completed' || d.status === 'cancelled') {
+                        document.getElementById('tsStatusLabel').textContent = d.status === 'completed' ? 'Completed ✓' : 'Cancelled';
+                        document.getElementById('tsStatusLabel').className = d.status === 'completed' ? 'text-green' : 'text-red';
+                        document.getElementById('tsCompletedActions').style.display = 'flex';
+                        if (tsPollTimer) { clearInterval(tsPollTimer); tsPollTimer = null; }
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        function tsHandlePipelineEvent(ev) {
+            if (ev.type === 'progress' || ev.completed_count !== undefined) {
+                document.getElementById('tsDoneCount').textContent = ev.completed_count || ev.completed || 0;
+                document.getElementById('tsFailCount').textContent = ev.failed_count || ev.failed || 0;
+                const pct = ev.progress || ev.percent || 0;
+                document.getElementById('tsProgressBar').style.width = pct + '%';
+            }
+            if (ev.type === 'item_completed' || ev.type === 'item_failed') {
+                const list = document.getElementById('tsItemsList');
+                const isOk = ev.type === 'item_completed';
+                list.innerHTML += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;">
+                    <i class="fas ${isOk ? 'fa-check-circle' : 'fa-times-circle'}" style="color:${isOk ? 'var(--green)' : 'var(--red)'};"></i>
+                    <span style="flex:1;">${esc(ev.title || ev.item_title || ('Item ' + (ev.index || '')))}</span>
+                    <span style="font-size:11px;color:var(--muted);">${ev.elapsed ? ev.elapsed.toFixed(1) + 's' : ''}</span>
+                </div>`;
+                list.scrollTop = list.scrollHeight;
+            }
+            if (ev.type === 'job_completed' || ev.type === 'completed') {
+                document.getElementById('tsStatusLabel').textContent = 'Completed ✓';
+                document.getElementById('tsStatusLabel').className = 'text-green';
+                document.getElementById('tsProgressBar').style.width = '100%';
+                document.getElementById('tsCompletedActions').style.display = 'flex';
+                if (tsEventSource) { tsEventSource.close(); tsEventSource = null; }
+                if (tsPollTimer) { clearInterval(tsPollTimer); tsPollTimer = null; }
+            }
+        }
+
+        async function tsPausePipeline() {
+            if (!tsJobId) return;
+            await api('/api/bulk/pause/' + tsJobId, { method: 'POST' });
+            document.getElementById('btnTsPause').style.display = 'none';
+            document.getElementById('btnTsResume').style.display = '';
+            document.getElementById('tsStatusLabel').textContent = 'Paused';
+        }
+
+        async function tsResumePipeline() {
+            if (!tsJobId) return;
+            await api('/api/bulk/resume/' + tsJobId, { method: 'POST' });
+            document.getElementById('btnTsPause').style.display = '';
+            document.getElementById('btnTsResume').style.display = 'none';
+            document.getElementById('tsStatusLabel').textContent = 'Running…';
+        }
+
+        async function tsCancelPipeline() {
+            if (!tsJobId) return;
+            if (!confirm('Cancel this pipeline?')) return;
+            await api('/api/bulk/cancel/' + tsJobId, { method: 'POST' });
+            document.getElementById('tsStatusLabel').textContent = 'Cancelled';
+            document.getElementById('tsStatusLabel').className = 'text-red';
+            document.getElementById('tsCompletedActions').style.display = 'flex';
+            if (tsEventSource) { tsEventSource.close(); tsEventSource = null; }
+            if (tsPollTimer) { clearInterval(tsPollTimer); tsPollTimer = null; }
+        }
+
+        function tsNewBatch() {
+            tsShowStep(1);
+            tsTitles = [];
+            tsJobId = null;
+            document.getElementById('btnTsUpload').disabled = true;
+            document.getElementById('tsFileName').style.display = 'none';
+            tsCurrentFile = null;
         }
 
         // ═══════════════════════════════════════════════════════════════════

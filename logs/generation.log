@@ -969,3 +969,33 @@ RuntimeError: No Gemini API keys configured.
 2026-03-10 08:19:04 | INFO    | [GEN] SUCCESS — 15 scenes | key=...0tZk | cycle 1 | latency=99.2s
 2026-03-10 08:19:04 | INFO    | [BULK 9afcbd82] ── Item 1/5 DONE ── 'SHOCKING Truth: Why 99% Fail to Build Wealth (Hidden Psychology)' | 15 scenes | 99.4s
 2026-03-10 08:19:04 | INFO    | [BULK 9afcbd82] ═══ JOB FINISHED ═══ completed=5 | failed=0 | total=5
+2026-03-15 18:28:34 | INFO    | ╔══════════════════════════════════════════════════════════╗
+2026-03-15 18:28:34 | INFO    | ║            YT Automation — Provider Status              ║
+2026-03-15 18:28:34 | INFO    | ╠══════════════════════════════════════════════════════════╣
+2026-03-15 18:28:34 | INFO    | ║  Gemini keys : 1    │  Parallel workers : 10           ║
+2026-03-15 18:28:34 | INFO    | ║    Key #1: AIzaSyBiUK1s...0tZk                                          ║
+2026-03-15 18:28:34 | INFO    | ║  Claude keys : 1    │  Sequential worker : 1            ║
+2026-03-15 18:28:34 | INFO    | ║    Key #1: sk-ant-api03-th8...ZQAA                                     ║
+2026-03-15 18:28:34 | INFO    | ║  Default provider: GEMINI                               ║
+2026-03-15 18:28:34 | INFO    | ╚══════════════════════════════════════════════════════════╝
+2026-03-15 18:28:47 | INFO    | ╔══════════════════════════════════════════════════════════╗
+2026-03-15 18:28:47 | INFO    | ║            YT Automation — Provider Status              ║
+2026-03-15 18:28:47 | INFO    | ╠══════════════════════════════════════════════════════════╣
+2026-03-15 18:28:47 | INFO    | ║  Gemini keys : 1    │  Parallel workers : 10           ║
+2026-03-15 18:28:47 | INFO    | ║    Key #1: AIzaSyBiUK1s...0tZk                                          ║
+2026-03-15 18:28:47 | INFO    | ║  Claude keys : 1    │  Sequential worker : 1            ║
+2026-03-15 18:28:47 | INFO    | ║    Key #1: sk-ant-api03-th8...ZQAA                                     ║
+2026-03-15 18:28:47 | INFO    | ║  Default provider: GEMINI                               ║
+2026-03-15 18:28:47 | INFO    | ╚══════════════════════════════════════════════════════════╝
+2026-03-15 18:28:47 | INFO    | Starting YouTube Automation Tool on http://localhost:5000
+2026-03-15 18:28:56 | INFO    | ╔══════════════════════════════════════════════════════════╗
+2026-03-15 18:28:56 | INFO    | ║            YT Automation — Provider Status              ║
+2026-03-15 18:28:56 | INFO    | ╠══════════════════════════════════════════════════════════╣
+2026-03-15 18:28:56 | INFO    | ║  Gemini keys : 1    │  Parallel workers : 10           ║
+2026-03-15 18:28:56 | INFO    | ║    Key #1: AIzaSyBiUK1s...0tZk                                          ║
+2026-03-15 18:28:56 | INFO    | ║  Claude keys : 1    │  Sequential worker : 1            ║
+2026-03-15 18:28:56 | INFO    | ║    Key #1: sk-ant-api03-th8...ZQAA                                     ║
+2026-03-15 18:28:56 | INFO    | ║  Default provider: GEMINI                               ║
+2026-03-15 18:28:56 | INFO    | ╚══════════════════════════════════════════════════════════╝
+2026-03-15 18:28:56 | INFO    | Starting YouTube Automation Tool on http://localhost:5000
+2026-03-15 18:29:27 | INFO    | [TEMPLATE-STUDIO] Uploaded PDF 'test_template.pdf' → id=9bc97e6d, niche='Dark Psychology'

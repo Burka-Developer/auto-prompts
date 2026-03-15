@@ -29,6 +29,7 @@ import hashlib
 from google import genai
 import anthropic
 from pydantic import BaseModel, Field
+from PyPDF2 import PdfReader
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Setup
@@ -49,6 +50,7 @@ OUTPUT_DIR = BASE_DIR / "output"
 UPLOAD_DIR = BASE_DIR / "uploads"
 TEMPLATES_FILE = BASE_DIR / "templates_data.json"
 NICHES_FILE   = BASE_DIR / "niches_data.json"
+TEMPLATE_STUDIO_FILE = BASE_DIR / "template_studio_data.json"
 
 GEMINI_MODEL = "gemini-2.5-flash"
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
@@ -3855,6 +3857,330 @@ def adobe_stock_list_jobs():
             for j in adobe_stock_jobs.values()
         ]
     return jsonify({"success": True, "jobs": jobs})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Template Studio — PDF Upload & Pipeline
+# ═══════════════════════════════════════════════════════════════════════════
+
+template_studio_lock = threading.Lock()
+
+
+def _load_template_studio_data() -> dict:
+    if TEMPLATE_STUDIO_FILE.exists():
+        try:
+            return json.loads(TEMPLATE_STUDIO_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_template_studio_data(data: dict):
+    TEMPLATE_STUDIO_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _parse_pdf_template(file_path: str) -> dict:
+    """Extract prompt templates from a PDF file.
+
+    Looks for labelled sections such as:
+      - Image Generation / Image Prompt
+      - Video Generation / Video Prompt
+      - Thumbnail / Thumbnail Prompt
+      - Title Generation / Title Prompt
+
+    Returns a dict with keys: image_template, video_template, thumbnail_template,
+    title_template, and raw_text.
+    """
+    reader = PdfReader(file_path)
+    full_text = ""
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            full_text += page_text + "\n"
+
+    if not full_text.strip():
+        raise ValueError("PDF appears to be empty or contains only images (no extractable text).")
+
+    sections = {
+        "image_template": "",
+        "video_template": "",
+        "thumbnail_template": "",
+        "title_template": "",
+        "raw_text": full_text.strip(),
+    }
+
+    # Section detection patterns (case-insensitive)
+    patterns = {
+        "image_template": [
+            r"(?:image\s+generation|image\s+prompt)[:\s\-]*\n?([\s\S]*?)(?=(?:video\s+generation|video\s+prompt|thumbnail|title\s+generation|title\s+prompt|\Z))",
+        ],
+        "video_template": [
+            r"(?:video\s+generation|video\s+prompt)[:\s\-]*\n?([\s\S]*?)(?=(?:image\s+generation|image\s+prompt|thumbnail|title\s+generation|title\s+prompt|\Z))",
+        ],
+        "thumbnail_template": [
+            r"(?:thumbnail)[:\s\-]*\n?([\s\S]*?)(?=(?:image\s+generation|image\s+prompt|video\s+generation|video\s+prompt|title\s+generation|title\s+prompt|\Z))",
+        ],
+        "title_template": [
+            r"(?:title\s+generation|title\s+prompt)[:\s\-]*\n?([\s\S]*?)(?=(?:image\s+generation|image\s+prompt|video\s+generation|video\s+prompt|thumbnail|\Z))",
+        ],
+    }
+
+    for key, regex_list in patterns.items():
+        for regex in regex_list:
+            m = re.search(regex, full_text, re.IGNORECASE)
+            if m:
+                sections[key] = m.group(1).strip()
+                break
+
+    return sections
+
+
+@app.route("/api/template-studio/upload", methods=["POST"])
+def template_studio_upload():
+    """Upload a PDF template and extract prompt sections."""
+    try:
+        if "file" not in request.files:
+            return jsonify({"success": False, "message": "No file uploaded."})
+
+        f = request.files["file"]
+        if not f.filename:
+            return jsonify({"success": False, "message": "No file selected."})
+
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext != ".pdf":
+            return jsonify({"success": False, "message": "Only PDF files are supported."})
+
+        niche_name = (request.form.get("niche_name") or "").strip()
+        if not niche_name:
+            return jsonify({"success": False, "message": "Niche name is required."})
+
+        UPLOAD_DIR.mkdir(exist_ok=True)
+        safe_name = _sanitize(f.filename)
+        save_path = UPLOAD_DIR / safe_name
+        f.save(str(save_path))
+
+        try:
+            parsed = _parse_pdf_template(str(save_path))
+        finally:
+            if save_path.exists():
+                save_path.unlink()
+
+        template_id = str(uuid.uuid4())[:8]
+        entry = {
+            "id": template_id,
+            "niche_name": niche_name,
+            "filename": f.filename,
+            "image_template": parsed["image_template"],
+            "video_template": parsed["video_template"],
+            "thumbnail_template": parsed["thumbnail_template"],
+            "title_template": parsed["title_template"],
+            "raw_text": parsed["raw_text"][:5000],
+            "created_at": datetime.now().isoformat(),
+        }
+
+        with template_studio_lock:
+            data = _load_template_studio_data()
+            data[template_id] = entry
+            _save_template_studio_data(data)
+
+        log.info("[TEMPLATE-STUDIO] Uploaded PDF '%s' → id=%s, niche='%s'", f.filename, template_id, niche_name)
+
+        return jsonify({
+            "success": True,
+            "template_id": template_id,
+            "niche_name": niche_name,
+            "image_template": parsed["image_template"][:500],
+            "video_template": parsed["video_template"][:500],
+            "thumbnail_template": parsed["thumbnail_template"][:500],
+            "title_template": parsed["title_template"][:500],
+            "has_image": bool(parsed["image_template"]),
+            "has_video": bool(parsed["video_template"]),
+            "has_thumbnail": bool(parsed["thumbnail_template"]),
+            "has_title": bool(parsed["title_template"]),
+            "raw_preview": parsed["raw_text"][:1000],
+        })
+
+    except ValueError as ve:
+        return jsonify({"success": False, "message": str(ve)})
+    except Exception as exc:
+        log.error("Template Studio upload failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "message": str(exc)})
+
+
+@app.route("/api/template-studio/templates", methods=["GET"])
+def template_studio_list():
+    """List all uploaded template studio templates."""
+    with template_studio_lock:
+        data = _load_template_studio_data()
+    items = []
+    for tid, entry in data.items():
+        items.append({
+            "id": tid,
+            "niche_name": entry.get("niche_name", ""),
+            "filename": entry.get("filename", ""),
+            "has_image": bool(entry.get("image_template")),
+            "has_video": bool(entry.get("video_template")),
+            "has_thumbnail": bool(entry.get("thumbnail_template")),
+            "has_title": bool(entry.get("title_template")),
+            "created_at": entry.get("created_at", ""),
+        })
+    return jsonify({"success": True, "templates": items})
+
+
+@app.route("/api/template-studio/templates/<template_id>", methods=["GET"])
+def template_studio_get(template_id):
+    """Get a specific template studio template."""
+    with template_studio_lock:
+        data = _load_template_studio_data()
+    entry = data.get(template_id)
+    if not entry:
+        return jsonify({"success": False, "message": "Template not found."})
+    return jsonify({"success": True, "template": entry})
+
+
+@app.route("/api/template-studio/templates/<template_id>", methods=["PUT"])
+def template_studio_update(template_id):
+    """Update an existing template studio template sections."""
+    try:
+        body = request.json or {}
+        with template_studio_lock:
+            data = _load_template_studio_data()
+            entry = data.get(template_id)
+            if not entry:
+                return jsonify({"success": False, "message": "Template not found."})
+            for field in ("image_template", "video_template", "thumbnail_template", "title_template", "niche_name"):
+                if field in body:
+                    entry[field] = body[field]
+            data[template_id] = entry
+            _save_template_studio_data(data)
+        return jsonify({"success": True, "message": "Template updated."})
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)})
+
+
+@app.route("/api/template-studio/templates/<template_id>", methods=["DELETE"])
+def template_studio_delete(template_id):
+    """Delete a template studio template."""
+    with template_studio_lock:
+        data = _load_template_studio_data()
+        if template_id not in data:
+            return jsonify({"success": False, "message": "Template not found."})
+        del data[template_id]
+        _save_template_studio_data(data)
+    return jsonify({"success": True, "message": "Template deleted."})
+
+
+@app.route("/api/template-studio/generate-titles", methods=["POST"])
+def template_studio_generate_titles():
+    """Generate 15 viral titles using the uploaded PDF template context."""
+    try:
+        body = request.json or {}
+        template_id = (body.get("template_id") or "").strip()
+        num_titles = max(5, min(30, int(body.get("num_titles") or 15)))
+        provider = (body.get("provider") or "").strip() or None
+
+        with template_studio_lock:
+            data = _load_template_studio_data()
+        entry = data.get(template_id)
+        if not entry:
+            return jsonify({"success": False, "message": "Template not found."})
+
+        niche_name = entry.get("niche_name", "General")
+        title_tpl = entry.get("title_template", "")
+        image_tpl = entry.get("image_template", "")
+        video_tpl = entry.get("video_template", "")
+
+        custom_context = ""
+        if title_tpl:
+            custom_context += f"\n\nTITLE GENERATION TEMPLATE FROM PDF (use this as a guide for title style and structure):\n{title_tpl[:2000]}"
+        if image_tpl:
+            custom_context += f"\n\nIMAGE PROMPT TEMPLATE CONTEXT (the niche produces this type of visual content):\n{image_tpl[:1000]}"
+        if video_tpl:
+            custom_context += f"\n\nVIDEO PROMPT TEMPLATE CONTEXT (the niche produces this type of video content):\n{video_tpl[:1000]}"
+
+        prompt = _build_title_prompt(niche_name, "", num_titles, custom_instructions=custom_context)
+        result = _dispatch_titles(prompt, provider=provider)
+
+        return jsonify({
+            "success": True,
+            "niche": result.niche,
+            "niche_analysis": result.niche_analysis,
+            "audience_profile": result.audience_profile,
+            "titles": [t.model_dump() for t in result.titles],
+            "content_strategy_tips": result.content_strategy_tips,
+            "template_id": template_id,
+        })
+    except Exception as exc:
+        log.error("Template Studio title generation failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "message": str(exc)})
+
+
+@app.route("/api/template-studio/launch-pipeline", methods=["POST"])
+def template_studio_launch_pipeline():
+    """Launch full production pipeline from template studio titles.
+    Uses the PDF template sections as custom instructions for generation."""
+    try:
+        body = request.json or {}
+        template_id = (body.get("template_id") or "").strip()
+        items = body.get("items", [])
+        options = body.get("options", {})
+
+        if not items:
+            return jsonify({"success": False, "message": "No items to process."})
+
+        with template_studio_lock:
+            data = _load_template_studio_data()
+        entry = data.get(template_id, {})
+
+        niche_name = entry.get("niche_name", "") or options.get("niche_name", "")
+        image_tpl = entry.get("image_template", "")
+        video_tpl = entry.get("video_template", "")
+
+        for item in items:
+            if niche_name and not item.get("description"):
+                item["description"] = f"Niche: {niche_name}"
+            item["status"] = "queued"
+            item["error"] = None
+            item["result"] = None
+            if not item.get("folder"):
+                item["folder"] = _sanitize(item.get("title", "untitled"))
+
+        options["niche_name"] = niche_name
+        options["sub_niche_name"] = ""
+
+        # Inject PDF template instructions as image_style / video_style overrides
+        if image_tpl and not options.get("image_style"):
+            options["image_style"] = image_tpl[:500]
+        if video_tpl and not options.get("video_style"):
+            options["video_style"] = video_tpl[:500]
+
+        job_id = str(uuid.uuid4())[:8]
+        job = {
+            "id": job_id,
+            "status": "running",
+            "items": items,
+            "options": options,
+            "total_count": len(items),
+            "completed_count": 0,
+            "failed_count": 0,
+            "current_index": 0,
+            "progress": 0,
+            "created_at": datetime.now().isoformat(),
+            "completed_at": None,
+        }
+
+        with bulk_lock:
+            bulk_jobs[job_id] = job
+
+        thread = threading.Thread(target=_process_bulk_job, args=(job_id,), daemon=True)
+        thread.start()
+
+        log.info("Template Studio pipeline %s started: %d videos for '%s'", job_id, len(items), niche_name)
+        return jsonify({"success": True, "job_id": job_id, "total": len(items)})
+
+    except Exception as exc:
+        log.error("Template Studio pipeline launch failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "message": str(exc)})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
