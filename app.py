@@ -64,6 +64,10 @@ CLAUDE_BATCH_DELAY = 15  # seconds sleep between Claude batch requests to preser
 GEMINI_PARALLEL_WORKERS = 10     # Gemini has generous rate limits — 10 parallel workers
 CLAUDE_PARALLEL_WORKERS = 1      # Claude is rate-limited — 1 at a time to avoid exhaustion
 ADOBE_PARALLEL_BATCHES = 2       # concurrent Adobe Stock API-call threads
+TS_MAX_RAW_TEXT = 5000           # max chars stored from PDF raw text
+TS_TITLE_CONTEXT_LEN = 2000     # max chars for title template in prompt context
+TS_SECTION_CONTEXT_LEN = 1000   # max chars for image/video template in prompt context
+TS_MAX_STYLE_LEN = 500          # max chars for style override from PDF template
 ENV_FILE = BASE_DIR / ".env"
 LOG_DIR = BASE_DIR / "logs"
 
@@ -3974,7 +3978,7 @@ def template_studio_upload():
             "video_template": parsed["video_template"],
             "thumbnail_template": parsed["thumbnail_template"],
             "title_template": parsed["title_template"],
-            "raw_text": parsed["raw_text"][:5000],
+            "raw_text": parsed["raw_text"][:TS_MAX_RAW_TEXT],
             "created_at": datetime.now().isoformat(),
         }
 
@@ -3989,15 +3993,15 @@ def template_studio_upload():
             "success": True,
             "template_id": template_id,
             "niche_name": niche_name,
-            "image_template": parsed["image_template"][:500],
-            "video_template": parsed["video_template"][:500],
-            "thumbnail_template": parsed["thumbnail_template"][:500],
-            "title_template": parsed["title_template"][:500],
+            "image_template": parsed["image_template"][:TS_MAX_STYLE_LEN],
+            "video_template": parsed["video_template"][:TS_MAX_STYLE_LEN],
+            "thumbnail_template": parsed["thumbnail_template"][:TS_MAX_STYLE_LEN],
+            "title_template": parsed["title_template"][:TS_MAX_STYLE_LEN],
             "has_image": bool(parsed["image_template"]),
             "has_video": bool(parsed["video_template"]),
             "has_thumbnail": bool(parsed["thumbnail_template"]),
             "has_title": bool(parsed["title_template"]),
-            "raw_preview": parsed["raw_text"][:1000],
+            "raw_preview": parsed["raw_text"][:TS_SECTION_CONTEXT_LEN],
         })
 
     except ValueError as ve:
@@ -4092,11 +4096,11 @@ def template_studio_generate_titles():
 
         custom_context = ""
         if title_tpl:
-            custom_context += f"\n\nTITLE GENERATION TEMPLATE FROM PDF (use this as a guide for title style and structure):\n{title_tpl[:2000]}"
+            custom_context += f"\n\nTITLE GENERATION TEMPLATE FROM PDF (use this as a guide for title style and structure):\n{title_tpl[:TS_TITLE_CONTEXT_LEN]}"
         if image_tpl:
-            custom_context += f"\n\nIMAGE PROMPT TEMPLATE CONTEXT (the niche produces this type of visual content):\n{image_tpl[:1000]}"
+            custom_context += f"\n\nIMAGE PROMPT TEMPLATE CONTEXT (the niche produces this type of visual content):\n{image_tpl[:TS_SECTION_CONTEXT_LEN]}"
         if video_tpl:
-            custom_context += f"\n\nVIDEO PROMPT TEMPLATE CONTEXT (the niche produces this type of video content):\n{video_tpl[:1000]}"
+            custom_context += f"\n\nVIDEO PROMPT TEMPLATE CONTEXT (the niche produces this type of video content):\n{video_tpl[:TS_SECTION_CONTEXT_LEN]}"
 
         prompt = _build_title_prompt(niche_name, "", num_titles, custom_instructions=custom_context)
         result = _dispatch_titles(prompt, provider=provider)
@@ -4150,9 +4154,9 @@ def template_studio_launch_pipeline():
 
         # Inject PDF template instructions as image_style / video_style overrides
         if image_tpl and not options.get("image_style"):
-            options["image_style"] = image_tpl[:500]
+            options["image_style"] = image_tpl[:TS_MAX_STYLE_LEN]
         if video_tpl and not options.get("video_style"):
-            options["video_style"] = video_tpl[:500]
+            options["video_style"] = video_tpl[:TS_MAX_STYLE_LEN]
 
         job_id = str(uuid.uuid4())[:8]
         job = {
