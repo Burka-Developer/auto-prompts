@@ -1820,11 +1820,13 @@ def api_generate():
         niche_folder = (data.get("niche_folder") or "").strip()
 
         # If a niche is selected, auto-use its image/video styles when not overridden
-        if niche_folder and not image_style:
+        if niche_folder and (not image_style or not video_style):
             all_niches = _get_all_niches()
             niche_info = all_niches.get(niche_folder, {})
-            image_style = niche_info.get("image_style", "")
-            video_style = niche_info.get("video_style", video_style)
+            if not image_style:
+                image_style = niche_info.get("image_style", "")
+            if not video_style:
+                video_style = niche_info.get("video_style", "")
             if niche_info.get("output_folder"):
                 niche_folder = niche_info["output_folder"].strip() or niche_folder
 
@@ -1857,6 +1859,7 @@ def api_generate():
             gen_video_prompts=gen_video_prompts,
             gen_i2v_prompts=gen_i2v_prompts,
             include_dialogue=include_dialogue,
+            niche_name=niche_folder,
         )
 
         return jsonify({"success": True, **output})
@@ -2328,7 +2331,7 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
 
     except Exception as exc:
         elapsed = time.time() - item_start_time
-        is_quota = _is_quota_error(exc)
+        is_quota = _is_quota_error(exc) or _is_claude_quota_error(exc)
         is_validation = "validation" in str(exc).lower() or "json" in str(exc).lower()
         error_type = "QUOTA/429" if is_quota else ("VALIDATION" if is_validation else "UNKNOWN")
         error_msg = str(exc)
@@ -2359,10 +2362,10 @@ def _process_bulk_job(job_id: str):
         job = bulk_jobs.get(job_id)
         if not job:
             return
+        items = job["items"]
+        total = len(items)
+        options = job["options"]
 
-    items = job["items"]
-    total = len(items)
-    options = job["options"]
     provider = options.get("provider", _get_provider()).lower()
     
     # Restrict workers based on provider rate limits
