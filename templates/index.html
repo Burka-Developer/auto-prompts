@@ -1482,6 +1482,10 @@
                                     <input type="text" class="form-control-dark" id="bulkVideoStyle" placeholder="e.g. cinematic, documentary…">
                                 </div>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label"><i class="fas fa-folder-open me-1 text-accent"></i> Custom Output Path <span class="opt">optional</span></label>
+                                <input type="text" class="form-control-dark" id="bulkOutputPath" placeholder="e.g. C:\Users\YourName\Desktop\Videos (leave empty for default output folder)">
+                            </div>
                             <button class="btn-accent w-100 btn-lg" id="btnBulkStart" onclick="bulkStartJob()">
                                 <i class="fas fa-rocket"></i> Start Bulk Generation
                             </button>
@@ -1676,6 +1680,10 @@
                             <div class="launch-panel h-100">
                                 <div class="card-title" style="color:var(--accent);margin-bottom:16px;"><i class="fas fa-rocket"></i> Launch Pipeline</div>
                                 <div id="nichePipelineSummary" style="margin-bottom:20px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                                <div class="mb-3">
+                                    <label class="form-label"><i class="fas fa-folder-open me-1 text-accent"></i> Custom Output Path <span class="opt">optional</span></label>
+                                    <input type="text" class="form-control-dark" id="nicheOutputPath" placeholder="e.g. C:\Users\YourName\Desktop\Videos (leave empty for default)">
+                                </div>
                                 <button class="btn-accent w-100 btn-lg" id="btnNichePipeline" onclick="nicheLaunchPipeline()"><i class="fas fa-play"></i> Generate Everything</button>
                                 <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">Script · Image prompts · Video prompts · SEO · Folder per title</p>
                             </div>
@@ -1947,6 +1955,10 @@
                         <div class="launch-panel h-100">
                             <div class="card-title" style="color:var(--accent);margin-bottom:16px;"><i class="fas fa-rocket"></i> Launch Pipeline</div>
                             <div id="tsPipelineSummary" style="margin-bottom:20px;display:flex;flex-direction:column;gap:8px;font-size:13px;"></div>
+                            <div class="mb-3">
+                                <label class="form-label"><i class="fas fa-folder-open me-1 text-accent"></i> Custom Output Path <span class="opt">optional</span></label>
+                                <input type="text" class="form-control-dark" id="tsOutputPath" placeholder="e.g. C:\Users\YourName\Desktop\Videos (leave empty for default)">
+                            </div>
                             <button class="btn-accent w-100 btn-lg" id="btnTsPipeline" onclick="tsLaunchPipeline()"><i class="fas fa-play"></i> Generate Everything</button>
                             <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center;">Script · Image prompts · Video prompts · SEO · Folder per title</p>
                         </div>
@@ -2081,6 +2093,10 @@
                             <div class="mb-3">
                                 <label class="form-label">Custom Instructions <span class="opt">optional</span></label>
                                 <textarea class="form-control-dark" id="adobeCustomInstructions" rows="2" placeholder="e.g. Focus only on Southeast Asian settings. Avoid snow/winter. Use pastel color palettes…"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><i class="fas fa-folder-open me-1 text-accent"></i> Custom Output Path <span class="opt">optional</span></label>
+                                <input type="text" class="form-control-dark" id="adobeOutputPath" placeholder="e.g. C:\Users\YourName\Desktop\AdobeStock (leave empty for default)">
                             </div>
                             <!-- Strategy tips for selected niche -->
                             <div id="adobeNicheTips" style="display:none;"></div>
@@ -2861,6 +2877,7 @@
                 num_i2v_prompts: parseInt(document.getElementById('bulkNumI2V').value) || 0,
                 image_style: document.getElementById('bulkImageStyle').value.trim(),
                 video_style: document.getElementById('bulkVideoStyle').value.trim(),
+                output_path: document.getElementById('bulkOutputPath').value.trim(),
             };
             document.getElementById('btnBulkStart').disabled = true;
             try {
@@ -3644,6 +3661,7 @@
                 num_i2v_prompts: parseInt(document.getElementById('nicheNumI2V').value) || 0,
                 image_style: document.getElementById('nicheImageStyle').value.trim(),
                 video_style: document.getElementById('nicheVideoStyle').value.trim(),
+                output_path: document.getElementById('nicheOutputPath').value.trim(),
             };
 
             document.getElementById('btnNichePipeline').disabled = true;
@@ -4146,6 +4164,7 @@
             const variations   = parseInt(document.getElementById('adobeVariations').value)    || 5;
             const subNiche     = document.getElementById('adobeSubNicheInput').value.trim();
             const customInstr  = document.getElementById('adobeCustomInstructions').value.trim();
+            const outputPath   = document.getElementById('adobeOutputPath').value.trim();
 
             const btn = document.getElementById('btnAdobeLaunch');
             btn.disabled = true;
@@ -4162,6 +4181,7 @@
                         variations:          variations,
                         custom_instructions: customInstr,
                         provider:            currentProvider,
+                        output_path:         outputPath,
                     }),
                 });
                 if (!d.success) throw new Error(d.message || 'Failed to start job');
@@ -4678,6 +4698,7 @@
                 num_i2v_prompts: parseInt(document.getElementById('tsNumI2V').value) || 0,
                 image_style: document.getElementById('tsImageStyle').value.trim(),
                 video_style: document.getElementById('tsVideoStyle').value.trim(),
+                output_path: document.getElementById('tsOutputPath').value.trim(),
             };
 
             showSpinner('Launching pipeline…');

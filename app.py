@@ -1410,14 +1410,23 @@ def _write_outputs(
     include_dialogue: bool,
     niche_name: str = "",
     sub_niche_name: str = "",
+    output_path: str = "",
 ) -> dict:
     """Write all output files. Returns dict with paths and content for the UI.
-    
+
     Output structure:
-      output / {niche} / {sub_niche} / {video_title} / ...
-    If niche/sub_niche not provided, falls back to flat: output / {folder_name} / ...
+      {output_path or OUTPUT_DIR} / {niche} / {sub_niche} / {video_title} /
+        Script/
+          script ({video_title}).txt
+        Image Prompts/
+          image prompts ({video_title}).txt
+        Video Prompts/
+          video prompts ({video_title}).txt
+        Image to Video/
+          i2v prompts ({video_title}).txt
+        {video_title}_detail.txt
     """
-    base = OUTPUT_DIR
+    base = Path(output_path) if output_path else OUTPUT_DIR
     if niche_name:
         base = base / _sanitize(niche_name)
     if sub_niche_name:
@@ -1425,12 +1434,15 @@ def _write_outputs(
     project = base / _sanitize(folder_name)
     sep = "=" * 60
 
+    # Safe title for use in filenames
+    safe_title = _sanitize(folder_name)
+
     created_files = {}
 
-    # ── 1. Audio Script (TTS-ready) ─────────────────────────────────
-    audio_dir = project / "audio"
-    audio_dir.mkdir(parents=True, exist_ok=True)
-    script_path = audio_dir / "script.txt"
+    # ── 1. Script (TTS-ready) ────────────────────────────────────
+    script_dir = project / "Script"
+    script_dir.mkdir(parents=True, exist_ok=True)
+    script_path = script_dir / f"script ({safe_title}).txt"
 
     lines = []
     for s in result.scenes:
@@ -1438,13 +1450,13 @@ def _write_outputs(
         lines.append("")  # blank line between scenes
     script_text = "\n".join(lines).strip() + "\n"
     script_path.write_text(script_text, encoding="utf-8")
-    created_files["script.txt"] = script_text
+    created_files[f"script ({safe_title}).txt"] = script_text
 
     # ── 2. Image Prompts ──────────────────────────────────────────
     if gen_image_prompts:
-        img_dir = project / "images"
+        img_dir = project / "Image Prompts"
         img_dir.mkdir(parents=True, exist_ok=True)
-        img_path = img_dir / "image_prompts.txt"
+        img_path = img_dir / f"image prompts ({safe_title}).txt"
         lines = []
         if result.character_master_variable:
             lines += [sep, "CHARACTER MASTER VARIABLE", sep, result.character_master_variable, "", ""]
@@ -1458,13 +1470,13 @@ def _write_outputs(
                     prompt_num += 1
         img_text = "\n".join(lines).strip() + "\n"
         img_path.write_text(img_text, encoding="utf-8")
-        created_files["image_prompts.txt"] = img_text
+        created_files[f"image prompts ({safe_title}).txt"] = img_text
 
     # ── 3. Video Prompts ──────────────────────────────────────────
     if gen_video_prompts:
-        vid_dir = project / "videos"
+        vid_dir = project / "Video Prompts"
         vid_dir.mkdir(parents=True, exist_ok=True)
-        vid_path = vid_dir / "video_prompts.txt"
+        vid_path = vid_dir / f"video prompts ({safe_title}).txt"
         lines = []
         if result.character_master_variable:
             lines += [sep, "CHARACTER MASTER VARIABLE", sep, result.character_master_variable, "", ""]
@@ -1481,13 +1493,13 @@ def _write_outputs(
                     prompt_num += 1
         vid_text = "\n".join(lines).strip() + "\n"
         vid_path.write_text(vid_text, encoding="utf-8")
-        created_files["video_prompts.txt"] = vid_text
+        created_files[f"video prompts ({safe_title}).txt"] = vid_text
 
     # ── 4. Image-to-Video Prompts ─────────────────────────────────
     if gen_i2v_prompts:
-        i2v_dir = project / "image_to_video"
+        i2v_dir = project / "Image to Video"
         i2v_dir.mkdir(parents=True, exist_ok=True)
-        i2v_path = i2v_dir / "i2v_prompts.txt"
+        i2v_path = i2v_dir / f"i2v prompts ({safe_title}).txt"
         lines = []
         prompt_num = 1
         for s in result.scenes:
@@ -1500,11 +1512,11 @@ def _write_outputs(
         if lines:
             i2v_text = "\n".join(lines).strip() + "\n"
             i2v_path.write_text(i2v_text, encoding="utf-8")
-            created_files["i2v_prompts.txt"] = i2v_text
+            created_files[f"i2v prompts ({safe_title}).txt"] = i2v_text
 
     # ── 5. Video Detail ───────────────────────────────────────────
     up = result.upload_pack
-    detail_path = project / f"{_sanitize(folder_name)}_detail.txt"
+    detail_path = project / f"{safe_title}_detail.txt"
     detail_lines = [
         sep, "VIDEO DETAIL", sep, "",
         f"Title: {up.upload_title}", "",
@@ -1519,7 +1531,7 @@ def _write_outputs(
     ]
     detail_text = "\n".join(detail_lines).strip() + "\n"
     detail_path.write_text(detail_text, encoding="utf-8")
-    created_files[f"{_sanitize(folder_name)}_detail.txt"] = detail_text
+    created_files[f"{safe_title}_detail.txt"] = detail_text
 
     return {
         "project_path": str(project),
@@ -1535,6 +1547,11 @@ def _write_outputs(
 
 @app.route("/")
 def index():
+    return render_template("workflow.html")
+
+
+@app.route("/studio")
+def studio():
     return render_template("index.html")
 
 
@@ -1818,6 +1835,7 @@ def api_generate():
         image_style = (data.get("image_style") or "").strip()
         video_style = (data.get("video_style") or "").strip()
         niche_folder = (data.get("niche_folder") or "").strip()
+        output_path = (data.get("output_path") or "").strip()
 
         # If a niche is selected, auto-use its image/video styles when not overridden
         if niche_folder and not image_style:
@@ -1857,6 +1875,7 @@ def api_generate():
             gen_video_prompts=gen_video_prompts,
             gen_i2v_prompts=gen_i2v_prompts,
             include_dialogue=include_dialogue,
+            output_path=output_path,
         )
 
         return jsonify({"success": True, **output})
@@ -2306,6 +2325,7 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
             include_dialogue=options.get("include_dialogue", False),
             niche_name=options.get("niche_name", ""),
             sub_niche_name=item_sub_niche,
+            output_path=options.get("output_path", ""),
         )
 
         elapsed = time.time() - item_start_time
@@ -3101,6 +3121,8 @@ def niche_launch_pipeline():
 
         options["niche_name"] = niche
         options["sub_niche_name"] = (data.get("sub_niche") or "").strip()
+        if not options.get("output_path"):
+            options["output_path"] = (data.get("output_path") or "").strip()
 
         job_id = str(uuid.uuid4())[:8]
         job = {
@@ -3668,11 +3690,13 @@ def adobe_stock_start():
         variations = max(1, min(15, int(data.get("variations") or 5)))
         custom_instructions = (data.get("custom_instructions") or "").strip()
         provider = (data.get("provider") or "").strip() or None
+        output_path = (data.get("output_path") or "").strip()
 
         job_id = str(uuid.uuid4())[:8]
         batch_name = _sanitize(f"{niche}{(' - ' + sub_niche) if sub_niche else ''}")
         batch_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = ADOBE_STOCK_OUTPUT_DIR / _sanitize(niche) / f"{batch_name}_{batch_timestamp}"
+        base_dir = Path(output_path) if output_path else ADOBE_STOCK_OUTPUT_DIR
+        output_dir = base_dir / _sanitize(niche) / f"{batch_name}_{batch_timestamp}"
 
         job = {
             "id": job_id,
@@ -4151,6 +4175,8 @@ def template_studio_launch_pipeline():
 
         options["niche_name"] = niche_name
         options["sub_niche_name"] = ""
+        if not options.get("output_path"):
+            options["output_path"] = (body.get("output_path") or "").strip()
 
         # Inject PDF template instructions as image_style / video_style overrides
         if image_tpl and not options.get("image_style"):
