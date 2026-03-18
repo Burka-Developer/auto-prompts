@@ -1516,7 +1516,7 @@ def _write_outputs(
 
     # ── 5. Video Detail ───────────────────────────────────────────
     up = result.upload_pack
-    detail_path = project / f"{safe_title}_detail.txt"
+    detail_path = project / f"detail ({safe_title}).txt"
     detail_lines = [
         sep, "VIDEO DETAIL", sep, "",
         f"Title: {up.upload_title}", "",
@@ -1531,7 +1531,7 @@ def _write_outputs(
     ]
     detail_text = "\n".join(detail_lines).strip() + "\n"
     detail_path.write_text(detail_text, encoding="utf-8")
-    created_files[f"{safe_title}_detail.txt"] = detail_text
+    created_files[f"detail ({safe_title}).txt"] = detail_text
 
     return {
         "project_path": str(project),
