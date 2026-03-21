@@ -1837,12 +1837,17 @@ def api_generate():
         niche_folder = (data.get("niche_folder") or "").strip()
         output_path = (data.get("output_path") or "").strip()
 
-        # If a niche is selected, auto-use its image/video styles when not overridden
-        if niche_folder and not image_style:
+        # If a niche is selected, auto-use its image/video styles when not overridden.
+        # Each style is only filled from the niche preset when the user has not supplied
+        # their own value — the two styles are checked independently so that providing
+        # one explicit style never silently clobbers the other.
+        if niche_folder:
             all_niches = _get_all_niches()
             niche_info = all_niches.get(niche_folder, {})
-            image_style = niche_info.get("image_style", "")
-            video_style = niche_info.get("video_style", video_style)
+            if not image_style:
+                image_style = niche_info.get("image_style", "")
+            if not video_style:
+                video_style = niche_info.get("video_style", "")
             if niche_info.get("output_folder"):
                 niche_folder = niche_info["output_folder"].strip() or niche_folder
 
@@ -1875,6 +1880,7 @@ def api_generate():
             gen_video_prompts=gen_video_prompts,
             gen_i2v_prompts=gen_i2v_prompts,
             include_dialogue=include_dialogue,
+            niche_name=niche_folder,
             output_path=output_path,
         )
 
@@ -2348,7 +2354,7 @@ def _process_single_bulk_item(job_id: str, idx: int, item: dict, total: int, opt
 
     except Exception as exc:
         elapsed = time.time() - item_start_time
-        is_quota = _is_quota_error(exc)
+        is_quota = _is_quota_error(exc) or _is_claude_quota_error(exc)
         is_validation = "validation" in str(exc).lower() or "json" in str(exc).lower()
         error_type = "QUOTA/429" if is_quota else ("VALIDATION" if is_validation else "UNKNOWN")
         error_msg = str(exc)
@@ -2409,20 +2415,22 @@ def _process_bulk_job(job_id: str):
             except Exception as exc:
                 log.error("[BULK %s] Worker thread raised: %s", job_id, exc)
 
+    completed = 0
+    failed = 0
     with bulk_lock:
         job = bulk_jobs.get(job_id)
         if job and job["status"] not in ("cancelled",):
             job["status"] = "completed"
             job["progress"] = 100
             job["completed_at"] = datetime.now().isoformat()
+        if job:
+            completed = job.get("completed_count", 0)
+            failed = job.get("failed_count", 0)
 
-    if job:
-        completed = job.get("completed_count", 0)
-        failed = job.get("failed_count", 0)
-        log.info(
-            "[BULK %s] ═══ JOB FINISHED ═══ completed=%d | failed=%d | total=%d",
-            job_id, completed, failed, total,
-        )
+    log.info(
+        "[BULK %s] ═══ JOB FINISHED ═══ completed=%d | failed=%d | total=%d",
+        job_id, completed, failed, total,
+    )
 
 
 @app.route("/api/bulk/upload", methods=["POST"])
