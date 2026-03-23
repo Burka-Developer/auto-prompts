@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workflow Guide — Auto Prompts Engine</title>
+    <title>Home — Auto Prompts Engine</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -14,9 +14,10 @@
             --bg-card: #151823;
             --bg-input: #1a1d2e;
             --border: rgba(255,255,255,.06);
-            --border2: rgba(255,255,255,.08);
+            --border2: rgba(255,255,255,.1);
             --accent: #f0a444;
             --accent-dim: rgba(240,164,68,.12);
+            --accent-glow: rgba(240,164,68,.25);
             --green: #4ade80;
             --blue: #60a5fa;
             --purple: #a78bfa;
@@ -30,6 +31,8 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
+        html { scroll-behavior: smooth; }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-root);
@@ -38,280 +41,59 @@
             overflow-x: hidden;
         }
 
-        /* Animated background */
+        /* Background ambient glows */
         .bg-glow {
             position: fixed; inset: 0; pointer-events: none; z-index: 0;
             background:
-                radial-gradient(ellipse 600px 400px at 20% 20%, rgba(240,164,68,.06), transparent),
-                radial-gradient(ellipse 500px 500px at 80% 70%, rgba(96,165,250,.04), transparent),
-                radial-gradient(ellipse 400px 300px at 50% 50%, rgba(167,139,250,.03), transparent);
+                radial-gradient(ellipse 700px 500px at 15% 15%, rgba(240,164,68,.05), transparent),
+                radial-gradient(ellipse 600px 600px at 85% 70%, rgba(96,165,250,.04), transparent),
+                radial-gradient(ellipse 400px 400px at 50% 50%, rgba(167,139,250,.03), transparent);
         }
 
+        /* ── Layout ── */
         .container {
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 40px 24px 80px;
+            padding: 0 24px 80px;
             position: relative;
             z-index: 1;
         }
 
-        /* Header */
-        .wf-header {
-            text-align: center;
-            margin-bottom: 56px;
-            animation: fadeInDown .6s ease;
-        }
-        .wf-header .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 24px;
-            transition: color .2s;
-        }
-        .wf-header .back-link:hover { color: var(--accent); }
-        .wf-header h1 {
-            font-size: 32px;
-            font-weight: 800;
-            letter-spacing: -.5px;
-            margin-bottom: 10px;
-        }
-        .wf-header h1 span { color: var(--accent); }
-        .wf-header p {
-            font-size: 15px;
-            color: var(--muted2);
-            max-width: 600px;
-            margin: 0 auto;
-            line-height: 1.6;
-        }
-
-        /* Flow Container */
-        .flow-track {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;
-        }
-
-        /* Connector line */
-        .flow-connector {
-            width: 2px;
-            height: 48px;
-            background: linear-gradient(to bottom, var(--accent), rgba(240,164,68,.2));
-            position: relative;
-        }
-        .flow-connector::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 8px;
-            height: 8px;
-            background: var(--accent);
-            border-radius: 50%;
-            box-shadow: 0 0 12px rgba(240,164,68,.4);
-        }
-        .flow-connector.blue { background: linear-gradient(to bottom, var(--blue), rgba(96,165,250,.2)); }
-        .flow-connector.blue::after { background: var(--blue); box-shadow: 0 0 12px rgba(96,165,250,.4); }
-        .flow-connector.green { background: linear-gradient(to bottom, var(--green), rgba(74,222,128,.2)); }
-        .flow-connector.green::after { background: var(--green); box-shadow: 0 0 12px rgba(74,222,128,.4); }
-        .flow-connector.purple { background: linear-gradient(to bottom, var(--purple), rgba(167,139,250,.2)); }
-        .flow-connector.purple::after { background: var(--purple); box-shadow: 0 0 12px rgba(167,139,250,.4); }
-        .flow-connector.pink { background: linear-gradient(to bottom, var(--pink), rgba(244,114,182,.2)); }
-        .flow-connector.pink::after { background: var(--pink); box-shadow: 0 0 12px rgba(244,114,182,.4); }
-
-        /* Step card */
-        .flow-step {
-            width: 100%;
-            max-width: 780px;
-            background: var(--bg-card);
-            border: 1.5px solid var(--border2);
-            border-radius: 16px;
-            padding: 28px 32px;
-            position: relative;
-            opacity: 0;
-            transform: translateY(30px);
-            transition: opacity .5s ease, transform .5s ease, border-color .3s;
-        }
-        .flow-step.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .flow-step:hover {
-            border-color: rgba(240,164,68,.2);
-        }
-
-        .step-number {
-            position: absolute;
-            top: -14px;
-            left: 28px;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
+        /* ── Top nav ── */
+        .top-nav {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 800;
-            color: #fff;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: rgba(13,15,23,.92);
+            backdrop-filter: blur(12px);
+            z-index: 100;
         }
-        .step-number.accent { background: var(--accent); box-shadow: 0 4px 16px rgba(240,164,68,.35); }
-        .step-number.blue { background: var(--blue); box-shadow: 0 4px 16px rgba(96,165,250,.35); }
-        .step-number.green { background: var(--green); color: #0d0f17; box-shadow: 0 4px 16px rgba(74,222,128,.35); }
-        .step-number.purple { background: var(--purple); box-shadow: 0 4px 16px rgba(167,139,250,.35); }
-        .step-number.pink { background: var(--pink); box-shadow: 0 4px 16px rgba(244,114,182,.35); }
-        .step-number.cyan { background: var(--cyan); color: #0d0f17; box-shadow: 0 4px 16px rgba(34,211,238,.35); }
-
-        .step-head {
+        .nav-brand {
             display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 14px;
-        }
-        .step-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        .step-icon.accent { background: var(--accent-dim); color: var(--accent); }
-        .step-icon.blue { background: rgba(96,165,250,.1); color: var(--blue); }
-        .step-icon.green { background: rgba(74,222,128,.1); color: var(--green); }
-        .step-icon.purple { background: rgba(167,139,250,.1); color: var(--purple); }
-        .step-icon.pink { background: rgba(244,114,182,.1); color: var(--pink); }
-        .step-icon.cyan { background: rgba(34,211,238,.1); color: var(--cyan); }
-
-        .step-title {
-            font-size: 17px;
-            font-weight: 700;
-            letter-spacing: -.2px;
-        }
-        .step-subtitle {
-            font-size: 12px;
-            color: var(--muted);
-            font-weight: 500;
-            margin-top: 2px;
-        }
-        .step-body {
-            font-size: 13px;
-            color: var(--muted2);
-            line-height: 1.7;
-            margin-bottom: 18px;
-        }
-
-        /* Feature pills */
-        .feature-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .feature-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            background: rgba(255,255,255,.04);
-            border: 1px solid var(--border2);
-            color: var(--muted2);
-            transition: all .2s;
-        }
-        .feature-pill:hover {
-            background: var(--accent-dim);
-            border-color: rgba(240,164,68,.2);
-            color: var(--accent);
-        }
-        .feature-pill i { font-size: 10px; }
-
-        /* Branch diagram */
-        .branch-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-top: 12px;
-        }
-        .branch-card {
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 14px 16px;
-            text-align: center;
-            transition: all .2s;
-        }
-        .branch-card:hover {
-            border-color: rgba(240,164,68,.2);
-            transform: translateY(-1px);
-        }
-        .branch-card .bc-icon { font-size: 22px; margin-bottom: 8px; }
-        .branch-card .bc-label { font-size: 12px; font-weight: 700; color: var(--text); }
-        .branch-card .bc-desc { font-size: 11px; color: var(--muted); margin-top: 3px; }
-
-        /* sse live indicator */
-        .live-dot {
-            display: inline-block;
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: var(--green);
-            margin-right: 4px;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(74,222,128,.5); }
-            50% { opacity: .4; box-shadow: 0 0 2px rgba(74,222,128,.2); }
-        }
-
-        /* Architecture diagram */
-        .arch-diagram {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            padding: 20px;
-            background: var(--bg-input);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            margin-top: 14px;
-            flex-wrap: wrap;
-        }
-        .arch-box {
-            padding: 10px 18px;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 700;
-            min-width: 100px;
-        }
-        .arch-box.client { background: rgba(96,165,250,.12); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
-        .arch-box.server { background: rgba(240,164,68,.12); color: var(--accent); border: 1px solid rgba(240,164,68,.2); }
-        .arch-box.ai { background: rgba(167,139,250,.12); color: var(--purple); border: 1px solid rgba(167,139,250,.2); }
-        .arch-box.storage { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.2); }
-        .arch-arrow { color: var(--muted); font-size: 16px; }
-
-        /* Footer */
-        .wf-footer {
-            text-align: center;
-            margin-top: 60px;
-            padding-top: 30px;
-            border-top: 1px solid var(--border);
-            animation: fadeInUp .6s ease .4s both;
-        }
-        .wf-footer a {
-            display: inline-flex;
             align-items: center;
             gap: 10px;
-            padding: 12px 28px;
-            border-radius: 10px;
+            text-decoration: none;
+        }
+        .nav-brand .brand-icon {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, var(--accent), #ff7b54);
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: #fff;
+        }
+        .nav-brand .brand-name {
+            font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -.3px;
+        }
+        .nav-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border-radius: 8px;
             background: var(--accent);
             color: #0d0f17;
             font-size: 13px;
@@ -319,288 +101,680 @@
             text-decoration: none;
             transition: all .2s;
         }
-        .wf-footer a:hover {
-            background: #e6993a;
-            transform: translateY(-1px);
-            box-shadow: 0 8px 24px rgba(240,164,68,.3);
+        .nav-cta:hover { background: #e6993a; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(240,164,68,.3); }
+
+        /* ── Hero ── */
+        .hero {
+            padding: 72px 0 56px;
+            text-align: center;
+            animation: fadeInDown .6s ease;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(240,164,68,.2);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            letter-spacing: .5px;
+        }
+        .hero h1 {
+            font-size: clamp(28px, 5vw, 52px);
+            font-weight: 900;
+            letter-spacing: -1px;
+            line-height: 1.15;
+            margin-bottom: 20px;
+        }
+        .hero h1 span { color: var(--accent); }
+        .hero p {
+            font-size: 17px;
+            color: var(--muted2);
+            max-width: 600px;
+            margin: 0 auto 36px;
+            line-height: 1.7;
+        }
+        .hero-btns {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: 10px;
+            background: var(--accent);
+            color: #0d0f17;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all .2s;
+        }
+        .btn-primary:hover { background: #e6993a; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(240,164,68,.35); }
+        .btn-outline {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border2);
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            background: rgba(255,255,255,.03);
+            transition: all .2s;
+        }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+        /* ── Stats row ── */
+        .stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            padding: 24px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 64px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-item .val {
+            font-size: 24px; font-weight: 800; color: var(--accent);
+        }
+        .stat-item .lbl {
+            font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 2px;
         }
 
-        /* Animations */
+        /* ── Sections ── */
+        .section { margin-bottom: 64px; }
+        .section-header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+        .section-header h2 {
+            font-size: 26px; font-weight: 800; letter-spacing: -.4px;
+            margin-bottom: 10px;
+        }
+        .section-header h2 span { color: var(--accent); }
+        .section-header p {
+            font-size: 14px; color: var(--muted2); max-width: 550px; margin: 0 auto;
+        }
+
+        /* ── Modules grid ── */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .module-card {
+            background: var(--bg-card);
+            border: 1.5px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all .25s;
+            position: relative;
+            overflow: hidden;
+        }
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent);
+            opacity: 0;
+            transition: opacity .25s;
+        }
+        .module-card:hover { border-color: rgba(240,164,68,.25); transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.4); }
+        .module-card:hover::before { opacity: 1; }
+        .module-card.blue::before { background: var(--blue); }
+        .module-card.blue:hover { border-color: rgba(96,165,250,.25); }
+        .module-card.green::before { background: var(--green); }
+        .module-card.green:hover { border-color: rgba(74,222,128,.25); }
+        .module-card.purple::before { background: var(--purple); }
+        .module-card.purple:hover { border-color: rgba(167,139,250,.25); }
+        .module-card.pink::before { background: var(--pink); }
+        .module-card.pink:hover { border-color: rgba(244,114,182,.25); }
+        .module-card.cyan::before { background: var(--cyan); }
+        .module-card.cyan:hover { border-color: rgba(34,211,238,.25); }
+
+        .mod-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .mod-icon {
+            width: 42px; height: 42px;
+            border-radius: 11px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .mod-icon.accent { background: var(--accent-dim); color: var(--accent); }
+        .mod-icon.blue { background: rgba(96,165,250,.1); color: var(--blue); }
+        .mod-icon.green { background: rgba(74,222,128,.1); color: var(--green); }
+        .mod-icon.purple { background: rgba(167,139,250,.1); color: var(--purple); }
+        .mod-icon.pink { background: rgba(244,114,182,.1); color: var(--pink); }
+        .mod-icon.cyan { background: rgba(34,211,238,.1); color: var(--cyan); }
+
+        .mod-title { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+        .mod-subtitle { font-size: 11px; color: var(--muted); font-weight: 500; }
+        .mod-body { font-size: 13px; color: var(--muted2); line-height: 1.7; margin-bottom: 14px; }
+        .mod-steps {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .mod-steps li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--muted2);
+        }
+        .mod-steps li .step-num {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            color: var(--accent);
+            font-size: 10px;
+            font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .module-card.blue .mod-steps li .step-num { background: rgba(96,165,250,.1); color: var(--blue); }
+        .module-card.green .mod-steps li .step-num { background: rgba(74,222,128,.1); color: var(--green); }
+        .module-card.purple .mod-steps li .step-num { background: rgba(167,139,250,.1); color: var(--purple); }
+        .module-card.pink .mod-steps li .step-num { background: rgba(244,114,182,.1); color: var(--pink); }
+        .module-card.cyan .mod-steps li .step-num { background: rgba(34,211,238,.1); color: var(--cyan); }
+
+        /* ── Workflow Timeline ── */
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            align-items: center;
+        }
+        .tl-step {
+            width: 100%;
+            max-width: 760px;
+            background: var(--bg-card);
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 22px 26px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity .5s ease, transform .5s ease;
+        }
+        .tl-step.visible { opacity: 1; transform: none; }
+        .tl-connector {
+            width: 2px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--accent), rgba(240,164,68,.15));
+        }
+        .tl-step-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .tl-num {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #0d0f17;
+            font-size: 12px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 0 14px var(--accent-glow);
+        }
+        .tl-step-title { font-size: 15px; font-weight: 700; }
+        .tl-step-body { font-size: 13px; color: var(--muted2); line-height: 1.65; }
+
+        /* ── Output Structure ── */
+        .folder-tree {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 2.1;
+        }
+        .folder-tree .folder { color: var(--accent); font-weight: 700; }
+        .folder-tree .subfolder { color: var(--blue); font-weight: 600; }
+        .folder-tree .file { color: var(--green); }
+        .folder-tree .comment { color: var(--muted); font-size: 11px; }
+        .folder-tree .pipe { color: var(--muted); }
+        .folder-tree .indent { padding-left: 20px; }
+        .folder-tree .indent2 { padding-left: 40px; }
+        .folder-tree .indent3 { padding-left: 60px; }
+
+        /* ── Pills ── */
+        .pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255,255,255,.04);
+            border: 1px solid var(--border2);
+            color: var(--muted2);
+        }
+        .pill i { font-size: 9px; }
+        .pill.accent { background: var(--accent-dim); border-color: rgba(240,164,68,.2); color: var(--accent); }
+        .pill.green { background: rgba(74,222,128,.08); border-color: rgba(74,222,128,.2); color: var(--green); }
+
+        /* ── Architecture ── */
+        .arch {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            padding: 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            flex-wrap: wrap;
+        }
+        .arch-box {
+            padding: 12px 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 12px; font-weight: 700;
+            min-width: 110px;
+        }
+        .arch-box.client { background: rgba(96,165,250,.1); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
+        .arch-box.server { background: rgba(240,164,68,.1); color: var(--accent); border: 1px solid rgba(240,164,68,.2); }
+        .arch-box.ai { background: rgba(167,139,250,.1); color: var(--purple); border: 1px solid rgba(167,139,250,.2); }
+        .arch-box.files { background: rgba(74,222,128,.1); color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+        .arch-box i { display: block; font-size: 18px; margin-bottom: 6px; }
+        .arch-arrow { color: var(--muted); font-size: 18px; }
+
+        /* ── Footer ── */
+        .page-footer {
+            text-align: center;
+            padding: 40px 24px;
+            border-top: 1px solid var(--border);
+            margin-top: 20px;
+        }
+        .page-footer h3 {
+            font-size: 20px; font-weight: 800; margin-bottom: 10px;
+        }
+        .page-footer p {
+            font-size: 14px; color: var(--muted2); margin-bottom: 24px;
+        }
+
+        /* ── Animations ── */
         @keyframes fadeInDown {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .live-dot {
+            display: inline-block; width: 6px; height: 6px;
+            border-radius: 50%; background: var(--green);
+            animation: pulse 1.5s infinite; margin-right: 4px;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px rgba(74,222,128,.6); }
+            50% { opacity: .3; }
         }
 
-        /* Responsive */
+        /* ── Responsive ── */
         @media (max-width: 768px) {
-            .container { padding: 24px 16px 60px; }
-            .wf-header h1 { font-size: 24px; }
-            .flow-step { padding: 22px 20px; }
-            .branch-row { grid-template-columns: 1fr; }
-            .arch-diagram { flex-direction: column; gap: 8px; }
+            .top-nav { padding: 14px 16px; }
+            .hero { padding: 48px 0 36px; }
+            .container { padding: 0 16px 60px; }
+            .arch { flex-direction: column; gap: 6px; }
             .arch-arrow { transform: rotate(90deg); }
+            .stats-row { gap: 16px; }
         }
     </style>
 </head>
 <body>
-    <div class="bg-glow"></div>
+<div class="bg-glow"></div>
 
-    <div class="container">
-        <!-- Header -->
-        <div class="wf-header">
-            <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
-            <h1>Application <span>Workflow</span></h1>
-            <p>Complete guide to the enterprise-level AI content automation pipeline — from configuration to bulk export.</p>
-        </div>
+<!-- Top Navigation -->
+<nav class="top-nav">
+    <a href="/" class="nav-brand">
+        <div class="brand-icon"><i class="fas fa-robot"></i></div>
+        <span class="brand-name">Auto Prompts Engine</span>
+    </a>
+    <a href="/studio" class="nav-cta"><i class="fas fa-rocket"></i> Open Studio</a>
+</nav>
 
-        <!-- Architecture Overview -->
-        <div class="flow-step visible" style="max-width:780px;margin:0 auto 40px;">
-            <div class="step-head">
-                <div class="step-icon cyan"><i class="fas fa-sitemap"></i></div>
-                <div>
-                    <div class="step-title">System Architecture</div>
-                    <div class="step-subtitle">High-Level Overview</div>
-                </div>
-            </div>
-            <div class="step-body">
-                The application follows a client-server architecture with dual AI provider support. The browser UI communicates with the Flask backend, which orchestrates calls to Gemini or Claude APIs and manages local file storage.
-            </div>
-            <div class="arch-diagram">
-                <div class="arch-box client"><i class="fas fa-desktop" style="display:block;font-size:16px;margin-bottom:4px;"></i>Browser UI</div>
-                <div class="arch-arrow"><i class="fas fa-arrows-left-right"></i></div>
-                <div class="arch-box server"><i class="fas fa-server" style="display:block;font-size:16px;margin-bottom:4px;"></i>Flask API</div>
-                <div class="arch-arrow"><i class="fas fa-arrows-left-right"></i></div>
-                <div class="arch-box ai"><i class="fas fa-brain" style="display:block;font-size:16px;margin-bottom:4px;"></i>Gemini / Claude</div>
-                <div class="arch-arrow"><i class="fas fa-arrow-right"></i></div>
-                <div class="arch-box storage"><i class="fas fa-folder-open" style="display:block;font-size:16px;margin-bottom:4px;"></i>Output Files</div>
-            </div>
-        </div>
+<div class="container">
 
-        <!-- Flow Track -->
-        <div class="flow-track">
-
-            <!-- Step 1: Configuration -->
-            <div class="flow-step" data-anim>
-                <div class="step-number accent">1</div>
-                <div class="step-head">
-                    <div class="step-icon accent"><i class="fas fa-cog"></i></div>
-                    <div>
-                        <div class="step-title">Configure API Keys & Provider</div>
-                        <div class="step-subtitle">Settings Panel — One-Time Setup</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Start by entering your API keys in the Settings panel. The application supports <strong>Google Gemini 2.5 Flash</strong> and <strong>Anthropic Claude Haiku</strong> as AI providers. You can switch between providers at any time — the active provider is used for all generation tasks.
-                </div>
-                <div class="feature-grid">
-                    <span class="feature-pill"><i class="fas fa-key"></i> Gemini API Key</span>
-                    <span class="feature-pill"><i class="fas fa-key"></i> Claude API Key</span>
-                    <span class="feature-pill"><i class="fas fa-toggle-on"></i> Provider Switch</span>
-                    <span class="feature-pill"><i class="fas fa-shield-halved"></i> Secure .env Storage</span>
-                </div>
-            </div>
-
-            <div class="flow-connector"></div>
-
-            <!-- Step 2: Niche Manager -->
-            <div class="flow-step" data-anim>
-                <div class="step-number blue">2</div>
-                <div class="step-head">
-                    <div class="step-icon blue"><i class="fas fa-layer-group"></i></div>
-                    <div>
-                        <div class="step-title">Manage Niches & Sub-Niches</div>
-                        <div class="step-subtitle">Niche Manager — Organize Your Content Domains</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Create and organize content niches with hierarchical sub-topics. Each niche can have an assigned image style, video style, tone, target audience, and linked template — giving you full control over content generation defaults.
-                </div>
-                <div class="branch-row">
-                    <div class="branch-card">
-                        <div class="bc-icon">📦</div>
-                        <div class="bc-label">10 Built-In Presets</div>
-                        <div class="bc-desc">Dark Psychology, Stoicism, True Crime, Horror, Finance, Space, History, Motivation, Relationships, Conspiracy</div>
-                    </div>
-                    <div class="branch-card">
-                        <div class="bc-icon">✏️</div>
-                        <div class="bc-label">Custom Niches</div>
-                        <div class="bc-desc">Create unlimited niches with custom sub-topics, styles, tone, audience & output folders</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flow-connector blue"></div>
-
-            <!-- Step 3: Templates -->
-            <div class="flow-step" data-anim>
-                <div class="step-number purple">3</div>
-                <div class="step-head">
-                    <div class="step-icon purple"><i class="fas fa-file-code"></i></div>
-                    <div>
-                        <div class="step-title">Create & Manage Templates</div>
-                        <div class="step-subtitle">Template Manager — Define Output Schemas</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Templates define the structure of AI-generated content using Pydantic schemas. Each template specifies the exact fields, types, and hierarchy of the output — ensuring consistent, structured results every time the AI generates content.
-                </div>
-                <div class="feature-grid">
-                    <span class="feature-pill"><i class="fas fa-code"></i> Pydantic Schemas</span>
-                    <span class="feature-pill"><i class="fas fa-copy"></i> Duplicate Templates</span>
-                    <span class="feature-pill"><i class="fas fa-upload"></i> Import / Export</span>
-                    <span class="feature-pill"><i class="fas fa-edit"></i> Live Editing</span>
-                    <span class="feature-pill"><i class="fas fa-list-check"></i> Field Validation</span>
-                </div>
-            </div>
-
-            <div class="flow-connector purple"></div>
-
-            <!-- Step 4: Generate Content -->
-            <div class="flow-step" data-anim>
-                <div class="step-number green">4</div>
-                <div class="step-head">
-                    <div class="step-icon green"><i class="fas fa-wand-magic-sparkles"></i></div>
-                    <div>
-                        <div class="step-title">Generate AI Content</div>
-                        <div class="step-subtitle">Prompt Creator — Single Title Generation</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Enter a topic title, select a template, choose a niche, and optionally provide additional prompts. The AI generates structured content using the selected template's schema — output includes scripts, image prompts, video prompts, and more based on your template design.
-                </div>
-                <div class="branch-row">
-                    <div class="branch-card">
-                        <div class="bc-icon">🧠</div>
-                        <div class="bc-label">AI Generation</div>
-                        <div class="bc-desc">Gemini 2.5 Flash or Claude Haiku generates content matching Pydantic schema</div>
-                    </div>
-                    <div class="branch-card">
-                        <div class="bc-icon">📂</div>
-                        <div class="bc-label">Auto File Output</div>
-                        <div class="bc-desc">Content is auto-saved to organized folder structures with all generated artifacts</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flow-connector green"></div>
-
-            <!-- Step 5: Bulk Automation -->
-            <div class="flow-step" data-anim>
-                <div class="step-number pink">5</div>
-                <div class="step-head">
-                    <div class="step-icon pink"><i class="fas fa-bolt"></i></div>
-                    <div>
-                        <div class="step-title">Bulk Automation</div>
-                        <div class="step-subtitle">Generate Multiple Titles in Parallel</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Enter multiple titles (one per line or comma-separated), select a niche and template, and launch bulk generation. The system uses multi-threading with configurable concurrency to process all titles simultaneously with real-time progress via Server-Sent Events.
-                </div>
-                <div class="feature-grid">
-                    <span class="feature-pill"><span class="live-dot"></span> Real-Time SSE Progress</span>
-                    <span class="feature-pill"><i class="fas fa-layer-group"></i> Multi-Threaded</span>
-                    <span class="feature-pill"><i class="fas fa-sliders-h"></i> Configurable Workers</span>
-                    <span class="feature-pill"><i class="fas fa-check-double"></i> Success / Fail Tracking</span>
-                    <span class="feature-pill"><i class="fas fa-folder-tree"></i> Niche Output Folders</span>
-                </div>
-            </div>
-
-            <div class="flow-connector pink"></div>
-
-            <!-- Step 6: Folder Creator -->
-            <div class="flow-step" data-anim>
-                <div class="step-number cyan">6</div>
-                <div class="step-head">
-                    <div class="step-icon cyan"><i class="fas fa-folder-plus"></i></div>
-                    <div>
-                        <div class="step-title">Folder Structure Creator</div>
-                        <div class="step-subtitle">Organize and Manage Output</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Use the Folder Creator to generate organized directory structures for your content. Select a niche, provide titles, and the system creates the complete folder hierarchy with all necessary sub-folders for scripts, image prompts, video prompts, and metadata.
-                </div>
-                <div class="feature-grid">
-                    <span class="feature-pill"><i class="fas fa-sitemap"></i> Auto Directory Trees</span>
-                    <span class="feature-pill"><i class="fas fa-tags"></i> Niche-Based Organization</span>
-                    <span class="feature-pill"><i class="fas fa-eye"></i> Project Browser</span>
-                    <span class="feature-pill"><i class="fas fa-download"></i> Export Content</span>
-                </div>
-            </div>
-
-            <div class="flow-connector"></div>
-
-            <!-- Step 7: Adobe Stock -->
-            <div class="flow-step" data-anim>
-                <div class="step-number accent">7</div>
-                <div class="step-head">
-                    <div class="step-icon accent"><i class="fas fa-images"></i></div>
-                    <div>
-                        <div class="step-title">Adobe Stock Automation</div>
-                        <div class="step-subtitle">Stock Content Pipeline</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Dedicated pipeline for Adobe Stock content generation. Upload inspiration images, configure metadata requirements, and generate stock-optimized content with proper keywords, titles, and descriptions in bulk with SSE progress tracking.
-                </div>
-                <div class="feature-grid">
-                    <span class="feature-pill"><i class="fas fa-upload"></i> Image Upload</span>
-                    <span class="feature-pill"><i class="fas fa-hashtag"></i> Auto Keywords</span>
-                    <span class="feature-pill"><span class="live-dot"></span> SSE Bulk Processing</span>
-                    <span class="feature-pill"><i class="fas fa-file-csv"></i> CSV Export</span>
-                </div>
-            </div>
-
-            <div class="flow-connector blue"></div>
-
-            <!-- Step 8: Logs & Monitoring -->
-            <div class="flow-step" data-anim>
-                <div class="step-number blue">8</div>
-                <div class="step-head">
-                    <div class="step-icon blue"><i class="fas fa-chart-line"></i></div>
-                    <div>
-                        <div class="step-title">Logs & Monitoring</div>
-                        <div class="step-subtitle">Track All Generation Activity</div>
-                    </div>
-                </div>
-                <div class="step-body">
-                    Every generation — single or bulk — is logged. View success and failure logs, inspect raw AI responses, and monitor system health. Failed generations are saved with full error details for debugging and retry.
-                </div>
-                <div class="feature-grid">
-                    <span class="feature-pill"><i class="fas fa-filter"></i> Filter by Status</span>
-                    <span class="feature-pill"><i class="fas fa-file-lines"></i> Raw Response Viewer</span>
-                    <span class="feature-pill"><i class="fas fa-trash"></i> Log Cleanup</span>
-                    <span class="feature-pill"><i class="fas fa-clock-rotate-left"></i> History</span>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Footer -->
-        <div class="wf-footer">
-            <a href="/"><i class="fas fa-rocket"></i> Launch Dashboard</a>
+    <!-- ── Hero ── -->
+    <div class="hero">
+        <div class="hero-badge"><i class="fas fa-sparkles"></i> AI-POWERED YOUTUBE AUTOMATION</div>
+        <h1>Your Complete <span>Video Content</span> Factory</h1>
+        <p>Generate scripts, image prompts, video prompts, SEO titles and descriptions — all fully organized by niche and video title, ready to hand off to your video editor.</p>
+        <div class="hero-btns">
+            <a href="/studio" class="btn-primary"><i class="fas fa-play"></i> Open Studio</a>
+            <a href="#how-it-works" class="btn-outline"><i class="fas fa-book-open"></i> How It Works</a>
         </div>
     </div>
 
-    <script>
-        // Animate steps on scroll
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach((entry, index) => {
-                if (entry.isIntersecting) {
-                    setTimeout(() => {
-                        entry.target.classList.add('visible');
-                    }, index * 80);
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.15 });
+    <!-- ── Stats ── -->
+    <div class="stats-row">
+        <div class="stat-item"><div class="val">5</div><div class="lbl">POWERFUL MODULES</div></div>
+        <div class="stat-item"><div class="val">2</div><div class="lbl">AI PROVIDERS</div></div>
+        <div class="stat-item"><div class="val">∞</div><div class="lbl">VIDEOS IN BULK</div></div>
+        <div class="stat-item"><div class="val">100%</div><div class="lbl">ORGANIZED OUTPUT</div></div>
+        <div class="stat-item"><div class="val">4K</div><div class="lbl">IMAGE PROMPTS</div></div>
+    </div>
 
-        document.querySelectorAll('.flow-step[data-anim]').forEach(el => observer.observe(el));
-    </script>
+    <!-- ── Modules ── -->
+    <div class="section" id="modules">
+        <div class="section-header">
+            <h2>5 Modules, <span>One Platform</span></h2>
+            <p>Each module serves a specific stage of your YouTube automation pipeline. Click a module to jump to a detailed step-by-step guide.</p>
+        </div>
+        <div class="modules-grid">
+
+            <!-- Niche Studio -->
+            <div class="module-card">
+                <div class="mod-header">
+                    <div class="mod-icon accent"><i class="fas fa-layer-group"></i></div>
+                    <div>
+                        <div class="mod-title">Niche Studio</div>
+                        <div class="mod-subtitle">Niche → Titles → Full Production Pipeline</div>
+                    </div>
+                </div>
+                <div class="mod-body">
+                    The most powerful module. Enter a niche topic and the AI generates a full content calendar with viral titles, then runs the complete production pipeline for every title — outputting scripts, image prompts, video prompts, and SEO metadata organized by niche and title.
+                </div>
+                <ul class="mod-steps">
+                    <li><span class="step-num">1</span><span>Enter niche (e.g. "Dark Psychology") and click Generate Titles</span></li>
+                    <li><span class="step-num">2</span><span>Review &amp; select titles from the AI-generated list</span></li>
+                    <li><span class="step-num">3</span><span>Configure style options, enable image/video prompts</span></li>
+                    <li><span class="step-num">4</span><span>Optionally enter a custom output path (or use the default)</span></li>
+                    <li><span class="step-num">5</span><span>Click "Generate Everything" — watch real-time progress</span></li>
+                    <li><span class="step-num">6</span><span>Find organized folders in your output directory</span></li>
+                </ul>
+            </div>
+
+            <!-- Bulk Automation -->
+            <div class="module-card blue">
+                <div class="mod-header">
+                    <div class="mod-icon blue"><i class="fas fa-bolt"></i></div>
+                    <div>
+                        <div class="mod-title">Bulk Automation</div>
+                        <div class="mod-subtitle">Upload Excel / JSON / TXT → Mass Generate</div>
+                    </div>
+                </div>
+                <div class="mod-body">
+                    Upload a spreadsheet with your video titles, descriptions, and metadata. The system processes all rows in parallel and outputs a complete production package for every video — scripts, prompts, and SEO — at scale with pause/resume/cancel controls.
+                </div>
+                <ul class="mod-steps">
+                    <li><span class="step-num">1</span><span>Upload your Excel (.xlsx), JSON, or TXT file with titles</span></li>
+                    <li><span class="step-num">2</span><span>Preview the detected columns and row count</span></li>
+                    <li><span class="step-num">3</span><span>Configure generation options (image style, video style)</span></li>
+                    <li><span class="step-num">4</span><span>Optionally set a custom output folder path</span></li>
+                    <li><span class="step-num">5</span><span>Click "Start Bulk Generation" and monitor real-time progress</span></li>
+                    <li><span class="step-num">6</span><span>Export failed items or retry on any errors</span></li>
+                </ul>
+            </div>
+
+            <!-- Adobe Stock -->
+            <div class="module-card purple">
+                <div class="mod-header">
+                    <div class="mod-icon purple"><i class="fas fa-images"></i></div>
+                    <div>
+                        <div class="mod-title">Adobe Stock Pipeline</div>
+                        <div class="mod-subtitle">Stock Photography Prompt Generator</div>
+                    </div>
+                </div>
+                <div class="mod-body">
+                    Specialized pipeline for Adobe Stock contributors. Pick a niche, set concepts and variations, and the AI generates camera-spec image prompts with professional titles and 50 layered keywords per image — ready for Midjourney, Firefly, or DALL-E 3.
+                </div>
+                <ul class="mod-steps">
+                    <li><span class="step-num">1</span><span>Select a stock photography niche from the preset gallery</span></li>
+                    <li><span class="step-num">2</span><span>Configure total concepts and variations per concept</span></li>
+                    <li><span class="step-num">3</span><span>Add optional sub-niche focus or custom instructions</span></li>
+                    <li><span class="step-num">4</span><span>Optionally set a custom output folder path</span></li>
+                    <li><span class="step-num">5</span><span>Click "Generate All Prompts" and watch batch progress</span></li>
+                    <li><span class="step-num">6</span><span>Use the output prompts.txt and titles_keywords.txt for upload</span></li>
+                </ul>
+            </div>
+
+            <!-- Template Studio -->
+            <div class="module-card pink">
+                <div class="mod-header">
+                    <div class="mod-icon pink"><i class="fas fa-file-pdf"></i></div>
+                    <div>
+                        <div class="mod-title">Template Studio</div>
+                        <div class="mod-subtitle">PDF Template → Pipeline</div>
+                    </div>
+                </div>
+                <div class="mod-body">
+                    Upload a PDF with your custom prompt templates (image style, video style, titles). The AI extracts the template sections and uses them as generation instructions — perfect for video editors who supply their own style guides.
+                </div>
+                <ul class="mod-steps">
+                    <li><span class="step-num">1</span><span>Upload a PDF template and give it a niche name</span></li>
+                    <li><span class="step-num">2</span><span>Review extracted template sections (image, video, title)</span></li>
+                    <li><span class="step-num">3</span><span>Generate titles using the PDF style as a guide</span></li>
+                    <li><span class="step-num">4</span><span>Select desired titles, configure options &amp; output path</span></li>
+                    <li><span class="step-num">5</span><span>Launch pipeline — all content follows your PDF template</span></li>
+                </ul>
+            </div>
+
+            <!-- Single Generate -->
+            <div class="module-card green">
+                <div class="mod-header">
+                    <div class="mod-icon green"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <div>
+                        <div class="mod-title">Single Generator</div>
+                        <div class="mod-subtitle">Prompt Creator — One Title at a Time</div>
+                    </div>
+                </div>
+                <div class="mod-body">
+                    Quickly generate a complete production package for one video title. Great for testing templates, checking output quality, or filling gaps in your content calendar. Full control over every parameter.
+                </div>
+                <ul class="mod-steps">
+                    <li><span class="step-num">1</span><span>Enter your video title and optional description/transcript</span></li>
+                    <li><span class="step-num">2</span><span>Choose a template and niche from the dropdowns</span></li>
+                    <li><span class="step-num">3</span><span>Enable the outputs you need (script, images, videos)</span></li>
+                    <li><span class="step-num">4</span><span>Click "Generate" and review the instant result</span></li>
+                </ul>
+            </div>
+
+            <!-- Settings -->
+            <div class="module-card cyan">
+                <div class="mod-header">
+                    <div class="mod-icon cyan"><i class="fas fa-cog"></i></div>
+                    <div>
+                        <div class="mod-title">Settings &amp; API Keys</div>
+                        <div class="mod-subtitle">One-Time Configuration</div>
+                    </div>
+                </div>
+                <div class="mod-body">
+                    Configure your AI provider API keys and switch between Google Gemini and Anthropic Claude at any time. All keys are stored securely server-side. Test your keys before launching any generation job.
+                </div>
+                <ul class="mod-steps">
+                    <li><span class="step-num">1</span><span>Open Settings from the sidebar</span></li>
+                    <li><span class="step-num">2</span><span>Enter your Gemini or Claude API key</span></li>
+                    <li><span class="step-num">3</span><span>Click "Test Key" to verify it works</span></li>
+                    <li><span class="step-num">4</span><span>Use the provider toggle to switch AI engines</span></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── How It Works ── -->
+    <div class="section" id="how-it-works">
+        <div class="section-header">
+            <h2>How It <span>Works</span></h2>
+            <p>From a blank slate to a complete video production package — here is the recommended workflow for a new user.</p>
+        </div>
+        <div class="timeline">
+
+            <div class="tl-step" data-anim>
+                <div class="tl-step-head">
+                    <div class="tl-num">1</div>
+                    <div class="tl-step-title">Set Up Your API Key (Settings)</div>
+                </div>
+                <div class="tl-step-body">
+                    Open the Settings panel from the left sidebar. Add your <strong>Google Gemini</strong> or <strong>Anthropic Claude</strong> API key. Both are free to get and have generous free tiers. Use the "Test Key" button to confirm it works before proceeding.
+                </div>
+                <div class="pills">
+                    <span class="pill"><i class="fas fa-key"></i> Gemini API Key</span>
+                    <span class="pill"><i class="fas fa-key"></i> Claude API Key</span>
+                    <span class="pill accent"><i class="fas fa-shield-halved"></i> Stored Securely</span>
+                </div>
+            </div>
+
+            <div class="tl-connector"></div>
+
+            <div class="tl-step" data-anim>
+                <div class="tl-step-head">
+                    <div class="tl-num">2</div>
+                    <div class="tl-step-title">Choose Your Module</div>
+                </div>
+                <div class="tl-step-body">
+                    Pick the module that fits your workflow. <strong>New users</strong> → start with <em>Niche Studio</em>. <strong>Have a spreadsheet of titles?</strong> → use <em>Bulk Automation</em>. <strong>Adobe Stock contributor?</strong> → use the <em>Adobe Stock Pipeline</em>. <strong>Have a style PDF?</strong> → use <em>Template Studio</em>.
+                </div>
+            </div>
+
+            <div class="tl-connector"></div>
+
+            <div class="tl-step" data-anim>
+                <div class="tl-step-head">
+                    <div class="tl-num">3</div>
+                    <div class="tl-step-title">Configure &amp; Launch</div>
+                </div>
+                <div class="tl-step-body">
+                    Enter your niche or upload your file. Configure image/video prompt style, enable or disable specific output types, and optionally set a <strong>custom output path</strong> for where files should be saved. Then click Launch / Generate.
+                </div>
+                <div class="pills">
+                    <span class="pill"><i class="fas fa-folder-open"></i> Custom Output Path</span>
+                    <span class="pill"><i class="fas fa-palette"></i> Image Style</span>
+                    <span class="pill"><i class="fas fa-film"></i> Video Style</span>
+                    <span class="pill green"><span class="live-dot"></span> Real-time Progress</span>
+                </div>
+            </div>
+
+            <div class="tl-connector"></div>
+
+            <div class="tl-step" data-anim>
+                <div class="tl-step-head">
+                    <div class="tl-num">4</div>
+                    <div class="tl-step-title">Receive Organized Output Files</div>
+                </div>
+                <div class="tl-step-body">
+                    When generation completes, all output files are saved in a structured folder hierarchy — organized by <strong>niche → video title</strong>, with separate subfolders for scripts, image prompts, and video prompts. Each file is named after the video title for easy identification.
+                </div>
+            </div>
+
+            <div class="tl-connector"></div>
+
+            <div class="tl-step" data-anim>
+                <div class="tl-step-head">
+                    <div class="tl-num">5</div>
+                    <div class="tl-step-title">Hand Off to Your Video Editor</div>
+                </div>
+                <div class="tl-step-body">
+                    Share the output folder with your video editor. Every folder contains everything they need: the script for voiceover, image prompts for AI art generation, video prompts for b-roll, and SEO metadata for YouTube upload — all clearly labeled and organized.
+                </div>
+                <div class="pills">
+                    <span class="pill"><i class="fas fa-file-alt"></i> Script (TTS-ready)</span>
+                    <span class="pill"><i class="fas fa-image"></i> Image Prompts</span>
+                    <span class="pill"><i class="fas fa-video"></i> Video Prompts</span>
+                    <span class="pill accent"><i class="fas fa-tags"></i> SEO Metadata</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Output Structure ── -->
+    <div class="section" id="output-structure">
+        <div class="section-header">
+            <h2>Output <span>Folder Structure</span></h2>
+            <p>Every generated video gets its own clearly labeled folder — organized by niche for a professional, hand-off-ready workspace.</p>
+        </div>
+        <div class="folder-tree">
+            <div><span class="folder">📁 output/</span> <span class="comment">← default output directory (or your custom path)</span></div>
+            <div class="indent"><span class="folder">📁 Dark Psychology/</span> <span class="comment">← niche name</span></div>
+            <div class="indent2"><span class="subfolder">📁 10 Signs of a Covert Narcissist/</span> <span class="comment">← video title</span></div>
+            <div class="indent3"><span class="subfolder">📁 Script/</span></div>
+            <div style="padding-left:80px;"><span class="file">📄 script (10 Signs of a Covert Narcissist).txt</span> <span class="comment">← TTS-ready voiceover</span></div>
+            <div class="indent3"><span class="subfolder">📁 Image Prompts/</span></div>
+            <div style="padding-left:80px;"><span class="file">📄 image prompts (10 Signs of a Covert Narcissist).txt</span> <span class="comment">← for AI image generators</span></div>
+            <div class="indent3"><span class="subfolder">📁 Video Prompts/</span></div>
+            <div style="padding-left:80px;"><span class="file">📄 video prompts (10 Signs of a Covert Narcissist).txt</span> <span class="comment">← for AI video generators</span></div>
+            <div class="indent3"><span class="subfolder">📁 Image to Video/</span></div>
+            <div style="padding-left:80px;"><span class="file">📄 i2v prompts (10 Signs of a Covert Narcissist).txt</span> <span class="comment">← image-to-video prompts</span></div>
+            <div class="indent3"><span class="file">📄 detail (10 Signs of a Covert Narcissist).txt</span> <span class="comment">← title, tags, keywords, description</span></div>
+            <div class="indent2"><span class="subfolder">📁 7 Dark Manipulation Tactics Explained/</span></div>
+            <div class="indent3"><span class="comment">└── (same structure as above)</span></div>
+            <div class="indent"><span class="folder">📁 Finance/</span> <span class="comment">← another niche</span></div>
+            <div class="indent2"><span class="comment">└── (same structure)</span></div>
+        </div>
+        <div style="margin-top:16px;padding:16px;background:var(--accent-dim);border:1px solid rgba(240,164,68,.2);border-radius:10px;font-size:13px;color:var(--muted2);">
+            <i class="fas fa-lightbulb" style="color:var(--accent);margin-right:8px;"></i>
+            <strong style="color:var(--text);">Custom Output Path:</strong> All modules support an optional custom output path. If left empty, files are saved to the default <code style="background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;color:var(--accent);">output/</code> folder in the application directory. Set a custom path to save directly to your video editor's workspace or a shared drive.
+        </div>
+    </div>
+
+    <!-- ── Architecture ── -->
+    <div class="section">
+        <div class="section-header">
+            <h2>System <span>Architecture</span></h2>
+            <p>Simple, efficient, no cloud required — runs entirely on your own machine.</p>
+        </div>
+        <div class="arch">
+            <div class="arch-box client"><i class="fas fa-desktop"></i>Browser UI<br><span style="font-size:10px;font-weight:400;opacity:.7;">HTML / CSS / JS</span></div>
+            <div class="arch-arrow"><i class="fas fa-arrows-left-right"></i></div>
+            <div class="arch-box server"><i class="fas fa-server"></i>Flask API<br><span style="font-size:10px;font-weight:400;opacity:.7;">Python · Port 5000</span></div>
+            <div class="arch-arrow"><i class="fas fa-arrows-left-right"></i></div>
+            <div class="arch-box ai"><i class="fas fa-brain"></i>AI Provider<br><span style="font-size:10px;font-weight:400;opacity:.7;">Gemini · Claude</span></div>
+            <div class="arch-arrow"><i class="fas fa-arrow-right"></i></div>
+            <div class="arch-box files"><i class="fas fa-folder-open"></i>Output Files<br><span style="font-size:10px;font-weight:400;opacity:.7;">Organized TXT</span></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Footer -->
+<div class="page-footer">
+    <h3>Ready to Start?</h3>
+    <p>Open the Studio and generate your first video production package in minutes.</p>
+    <a href="/studio" class="btn-primary"><i class="fas fa-rocket"></i> Open Studio Now</a>
+</div>
+
+<script>
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry, i) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => entry.target.classList.add('visible'), i * 80);
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.tl-step[data-anim]').forEach(el => observer.observe(el));
+</script>
 </body>
 </html>
